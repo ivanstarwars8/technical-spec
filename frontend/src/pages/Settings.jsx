@@ -154,12 +154,18 @@ const Settings = () => {
                     Недоступно
                   </button>
                 ) : tier !== 'free' ? (
-                  <button
-                    onClick={() => handleUpgrade(tier)}
-                    className="btn btn-primary w-full"
-                  >
-                    Перейти
-                  </button>
+                  subscription?.payment_enabled ? (
+                    <button
+                      onClick={() => handleUpgrade(tier)}
+                      className="btn btn-primary w-full"
+                    >
+                      Перейти
+                    </button>
+                  ) : (
+                    <button className="btn btn-secondary w-full" disabled>
+                      Скоро доступно
+                    </button>
+                  )
                 ) : null}
               </div>
             );

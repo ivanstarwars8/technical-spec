@@ -5,35 +5,87 @@
 @layer base {
   body {
     @apply bg-gray-50 text-gray-900;
+    font-size: 16px;
+    line-height: 1.6;
+  }
+
+  * {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   }
 }
 
 @layer components {
+  /* Увеличенные кнопки для лучшей кликабельности */
   .btn {
-    @apply px-4 py-2 rounded-lg font-medium transition-colors;
+    @apply px-6 py-3.5 rounded-lg font-semibold transition-all duration-200 text-base shadow-sm hover:shadow-md;
+    min-height: 44px; /* минимальный размер для удобного клика */
   }
 
   .btn-primary {
-    @apply bg-primary-600 text-white hover:bg-primary-700;
+    @apply bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800;
   }
 
   .btn-secondary {
-    @apply bg-gray-200 text-gray-700 hover:bg-gray-300;
+    @apply bg-gray-200 text-gray-800 hover:bg-gray-300 active:bg-gray-400;
   }
 
   .btn-danger {
-    @apply bg-red-600 text-white hover:bg-red-700;
+    @apply bg-red-600 text-white hover:bg-red-700 active:bg-red-800;
   }
 
+  /* Карточки с хорошей видимостью */
   .card {
-    @apply bg-white rounded-lg shadow-sm p-6;
+    @apply bg-white rounded-xl shadow-md p-8 border border-gray-200;
   }
 
+  /* Увеличенные поля ввода */
   .input {
-    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent;
+    @apply w-full px-4 py-3.5 text-base border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors;
+    min-height: 48px;
   }
 
+  .input::placeholder {
+    @apply text-gray-400;
+  }
+
+  /* Четкие, крупные метки */
   .label {
-    @apply block text-sm font-medium text-gray-700 mb-1;
+    @apply block text-base font-semibold text-gray-800 mb-2;
+  }
+
+  /* Улучшенная типографика для заголовков */
+  h1 {
+    @apply text-3xl md:text-4xl font-bold text-gray-900;
+  }
+
+  h2 {
+    @apply text-2xl md:text-3xl font-bold text-gray-900;
+  }
+
+  h3 {
+    @apply text-xl md:text-2xl font-bold text-gray-900;
+  }
+
+  /* Крупные, читаемые ссылки */
+  a {
+    @apply text-blue-600 hover:text-blue-800 transition-colors;
+  }
+
+  /* Четкие статус-бейджи */
+  .badge {
+    @apply px-3 py-1.5 rounded-full text-sm font-semibold;
+  }
+
+  /* Улучшенная читаемость таблиц */
+  table {
+    @apply w-full text-base;
+  }
+
+  th {
+    @apply font-bold text-gray-900 bg-gray-100 px-4 py-3;
+  }
+
+  td {
+    @apply px-4 py-3 border-b border-gray-200;
   }
 }

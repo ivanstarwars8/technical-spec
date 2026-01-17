@@ -27,10 +27,13 @@ def get_current_subscription(
     current_user: User = Depends(get_current_user)
 ):
     """Get current subscription tier and credits"""
+    yukassa_enabled = bool(settings.YUKASSA_SHOP_ID and settings.YUKASSA_SECRET_KEY)
+
     return {
         "subscription_tier": current_user.subscription_tier,
         "ai_credits_left": current_user.ai_credits_left,
-        "prices": SUBSCRIPTION_PRICES
+        "prices": SUBSCRIPTION_PRICES,
+        "payment_enabled": yukassa_enabled
     }
 
 
@@ -41,6 +44,13 @@ def upgrade_subscription(
     db: Session = Depends(get_db)
 ):
     """Create payment for subscription upgrade"""
+    # Check if YooKassa is configured
+    if not settings.YUKASSA_SHOP_ID or not settings.YUKASSA_SECRET_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Payment system is not configured. Please contact administrator."
+        )
+
     if tier == SubscriptionTier.FREE:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
