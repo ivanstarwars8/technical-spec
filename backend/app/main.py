@@ -52,6 +52,17 @@ def health_check():
     return {"status": "ok"}
 
 
+@app.get("/api/features")
+def get_features():
+    """Feature flags for optional integrations"""
+    return {
+        "ai_homework": settings.AI_ENABLED,
+        "billing": settings.BILLING_ENABLED,
+        "ai_homework_reason": None if settings.AI_ENABLED else "OPENAI_API_KEY не задан",
+        "billing_reason": None if settings.BILLING_ENABLED else "YUKASSA_SHOP_ID/YUKASSA_SECRET_KEY не заданы",
+    }
+
+
 # Create tables on startup (for development only)
 # In production, use Alembic migrations
 @app.on_event("startup")

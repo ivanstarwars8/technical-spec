@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { studentsAPI, homeworkAPI } from '../services/api';
+import { studentsAPI, homeworkAPI, featuresAPI } from '../services/api';
 import HomeworkGenerator from '../components/HomeworkGenerator';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -8,6 +8,8 @@ const Homework = () => {
   const [students, setStudents] = useState([]);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [aiEnabled, setAiEnabled] = useState(false);
+  const [aiReason, setAiReason] = useState('');
 
   useEffect(() => {
     loadData();
@@ -22,6 +24,15 @@ const Homework = () => {
 
       setStudents(studentsRes.data);
       setHistory(historyRes.data);
+      try {
+        const featuresRes = await featuresAPI.get();
+        setAiEnabled(Boolean(featuresRes.data?.ai_homework));
+        setAiReason(featuresRes.data?.ai_homework_reason || '');
+      } catch (featureError) {
+        console.error('Error loading features:', featureError);
+        setAiEnabled(false);
+        setAiReason('Не удалось проверить доступность AI генератора');
+      }
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -42,7 +53,16 @@ const Homework = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div>
-          <HomeworkGenerator students={students} />
+          {aiEnabled ? (
+            <HomeworkGenerator students={students} />
+          ) : (
+            <div className="card">
+              <h2 className="text-xl font-bold mb-2">AI-генератор отключен</h2>
+              <p className="text-gray-600">
+                {aiReason || 'Для включения добавьте OPENAI_API_KEY в .env и перезапустите backend.'}
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="card">

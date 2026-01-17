@@ -41,6 +41,12 @@ def upgrade_subscription(
     db: Session = Depends(get_db)
 ):
     """Create payment for subscription upgrade"""
+    if not settings.BILLING_ENABLED:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Оплата через ЮKassa отключена. Укажите YUKASSA_SHOP_ID и YUKASSA_SECRET_KEY в .env",
+        )
+
     if tier == SubscriptionTier.FREE:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -105,6 +111,12 @@ async def yukassa_webhook(
     db: Session = Depends(get_db)
 ):
     """Handle YooKassa webhook for payment confirmation"""
+    if not settings.BILLING_ENABLED:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="ЮKassa отключена. Включите YUKASSA_SHOP_ID и YUKASSA_SECRET_KEY",
+        )
+
     payload = await request.json()
 
     event_type = payload.get("event")

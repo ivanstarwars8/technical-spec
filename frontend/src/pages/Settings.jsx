@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { subscriptionAPI } from '../services/api';
+import { subscriptionAPI, featuresAPI } from '../services/api';
 import { User, CreditCard, Sparkles } from 'lucide-react';
 
 const Settings = () => {
   const { user } = useAuth();
   const [subscription, setSubscription] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [billingEnabled, setBillingEnabled] = useState(false);
+  const [billingReason, setBillingReason] = useState('');
 
   useEffect(() => {
     loadSubscription();
@@ -16,6 +18,15 @@ const Settings = () => {
     try {
       const response = await subscriptionAPI.getCurrent();
       setSubscription(response.data);
+      try {
+        const featuresRes = await featuresAPI.get();
+        setBillingEnabled(Boolean(featuresRes.data?.billing));
+        setBillingReason(featuresRes.data?.billing_reason || '');
+      } catch (featureError) {
+        console.error('Error loading features:', featureError);
+        setBillingEnabled(false);
+        setBillingReason('Не удалось проверить доступность оплаты');
+      }
     } catch (error) {
       console.error('Error loading subscription:', error);
     } finally {
@@ -98,6 +109,12 @@ const Settings = () => {
           <h2 className="text-xl font-bold">Текущий тариф</h2>
         </div>
 
+        {!billingEnabled && (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
+            {billingReason || 'Оплата временно отключена. Добавьте ключи ЮKassa в .env и перезапустите backend.'}
+          </div>
+        )}
+
         <div className="bg-primary-50 border border-primary-200 rounded-lg p-4 mb-6">
           <div className="flex items-center justify-between">
             <div>
@@ -148,6 +165,10 @@ const Settings = () => {
                 {isCurrent ? (
                   <button className="btn btn-secondary w-full" disabled>
                     Текущий тариф
+                  </button>
+                ) : !billingEnabled && tier !== 'free' ? (
+                  <button className="btn btn-secondary w-full" disabled>
+                    Оплата отключена
                   </button>
                 ) : isDowngrade ? (
                   <button className="btn btn-secondary w-full" disabled>

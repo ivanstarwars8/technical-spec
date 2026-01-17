@@ -8,6 +8,7 @@ from ..models.homework import AIHomework
 from ..schemas.homework import HomeworkGenerate, HomeworkResponse
 from ..utils.security import get_current_user
 from ..services.ai_generator import generate_homework
+from ..config import settings
 
 router = APIRouter(prefix="/api/homework", tags=["homework"])
 
@@ -19,6 +20,12 @@ def generate_homework_tasks(
     db: Session = Depends(get_db)
 ):
     """Generate homework tasks using AI"""
+    if not settings.AI_ENABLED:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="AI генератор отключен. Укажите OPENAI_API_KEY в .env",
+        )
+
     # Check AI credits
     if current_user.ai_credits_left <= 0:
         raise HTTPException(
