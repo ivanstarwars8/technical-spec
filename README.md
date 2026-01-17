@@ -30,6 +30,11 @@
 - **date-fns** - работа с датами
 - **Lucide React** - иконки
 
+## Проекты
+
+- `backend/` — FastAPI API, модели, миграции. Запуск: `uvicorn app.main:app --reload --port 8000`
+- `frontend/` — React UI (Vite). Запуск: `npm run dev`
+
 ## Быстрый старт
 
 ### Требования
@@ -63,6 +68,12 @@ pip install -r requirements.txt
 cp ../.env.example .env
 # Отредактируйте .env и укажите параметры подключения к PostgreSQL
 ```
+
+Минимальный запуск (без AI и оплаты):
+
+- Оставьте `OPENAI_API_KEY`, `YUKASSA_SHOP_ID`, `YUKASSA_SECRET_KEY` пустыми (закомментированными)
+- Достаточно заполнить `DATABASE_URL`, `SECRET_KEY`, `FRONTEND_URL`
+- Статус интеграций можно проверить через `GET /api/features`
 
 #### 3. Создание базы данных
 
