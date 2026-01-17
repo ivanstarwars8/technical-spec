@@ -69,6 +69,10 @@ const StudentDetail = () => {
     return <div>Загрузка...</div>;
   }
 
+  if (!student) {
+    return null;
+  }
+
   const totalDebt = lessons
     .filter((l) => l.payment_status !== 'paid')
     .reduce((sum, l) => sum + parseFloat(l.amount || 0), 0);
