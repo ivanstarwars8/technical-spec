@@ -86,4 +86,9 @@ export const subscriptionAPI = {
   upgrade: (tier) => api.post('/api/subscription/upgrade', null, { params: { tier } }),
 };
 
+// Feature flags API
+export const featuresAPI = {
+  get: () => api.get('/api/features'),
+};
+
 export default api;

@@ -181,6 +181,9 @@ tutor-crm/
 - `POST /api/subscription/upgrade` - Оплата через ЮKassa
 - `POST /api/subscription/webhook` - Webhook ЮKassa
 
+### Системные
+- `GET /api/features` - Флаги доступности AI и оплаты
+
 ## Тарифные планы
 
 - **Бесплатный**: 10 AI кредитов, до 5 учеников
@@ -201,12 +204,14 @@ tutor-crm/
 
 ### Backend (.env)
 
+OpenAI и YooKassa опциональны для первого запуска: если ключи не заданы, соответствующие функции будут отключены.
+
 ```env
 DATABASE_URL=postgresql://user:pass@localhost:5432/tutor_crm
 SECRET_KEY=your-secret-key
-OPENAI_API_KEY=sk-...
-YUKASSA_SHOP_ID=...
-YUKASSA_SECRET_KEY=...
+# OPENAI_API_KEY=
+# YUKASSA_SHOP_ID=
+# YUKASSA_SECRET_KEY=
 FRONTEND_URL=http://localhost:5173
 ```
 

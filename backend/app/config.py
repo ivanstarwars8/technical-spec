@@ -28,5 +28,13 @@ class Settings(BaseSettings):
         env_file = ".env"
         case_sensitive = True
 
+    @property
+    def AI_ENABLED(self) -> bool:
+        return bool(self.OPENAI_API_KEY)
+
+    @property
+    def BILLING_ENABLED(self) -> bool:
+        return bool(self.YUKASSA_SHOP_ID and self.YUKASSA_SECRET_KEY)
+
 
 settings = Settings()
