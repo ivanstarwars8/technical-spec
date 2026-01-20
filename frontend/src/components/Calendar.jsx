@@ -3,12 +3,19 @@ import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, addWeeks,
 import { ru } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-const Calendar = ({ lessons, onDayClick, onLessonClick }) => {
+const Calendar = ({ lessons, onDayClick, onLessonClick, onWeekChange }) => {
   const [currentWeek, setCurrentWeek] = useState(new Date());
 
   const weekStart = startOfWeek(currentWeek, { locale: ru, weekStartsOn: 1 });
   const weekEnd = endOfWeek(currentWeek, { locale: ru, weekStartsOn: 1 });
   const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
+
+  // Notify parent when week changes to reload data
+  useEffect(() => {
+    if (onWeekChange) {
+      onWeekChange(weekStart, weekEnd);
+    }
+  }, [currentWeek]);
 
   const getLessonsForDay = (day) => {
     return lessons.filter((lesson) =>
@@ -31,29 +38,29 @@ const Calendar = ({ lessons, onDayClick, onLessonClick }) => {
 
   return (
     <div className="card">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold">
+      <div className="flex items-center justify-between mb-8">
+        <h2 className="text-2xl font-bold text-gray-900">
           {format(weekStart, 'd MMMM', { locale: ru })} -{' '}
           {format(weekEnd, 'd MMMM yyyy', { locale: ru })}
         </h2>
-        <div className="flex gap-2">
+        <div className="flex gap-3">
           <button
             onClick={() => setCurrentWeek(subWeeks(currentWeek, 1))}
-            className="p-2 hover:bg-gray-100 rounded-lg"
+            className="p-3 hover:bg-gray-100 rounded-lg transition-colors"
           >
-            <ChevronLeft className="w-5 h-5" />
+            <ChevronLeft className="w-6 h-6" strokeWidth={2.5} />
           </button>
           <button
             onClick={() => setCurrentWeek(new Date())}
-            className="px-4 py-2 hover:bg-gray-100 rounded-lg font-medium"
+            className="px-6 py-3 hover:bg-gray-100 rounded-lg font-bold text-base transition-colors"
           >
             Сегодня
           </button>
           <button
             onClick={() => setCurrentWeek(addWeeks(currentWeek, 1))}
-            className="p-2 hover:bg-gray-100 rounded-lg"
+            className="p-3 hover:bg-gray-100 rounded-lg transition-colors"
           >
-            <ChevronRight className="w-5 h-5" />
+            <ChevronRight className="w-6 h-6" strokeWidth={2.5} />
           </button>
         </div>
       </div>
@@ -66,20 +73,20 @@ const Calendar = ({ lessons, onDayClick, onLessonClick }) => {
           return (
             <div
               key={day.toISOString()}
-              className={`border rounded-lg p-3 min-h-[120px] cursor-pointer hover:bg-gray-50 ${
-                isToday ? 'border-primary-500 bg-primary-50' : 'border-gray-200'
+              className={`border-2 rounded-xl p-4 min-h-[150px] cursor-pointer hover:bg-gray-50 hover:shadow-md transition-all ${
+                isToday ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
               }`}
               onClick={() => onDayClick(day)}
             >
-              <div className="font-semibold mb-2">
-                <div className="text-xs text-gray-500 uppercase">
+              <div className="font-bold mb-3">
+                <div className="text-sm text-gray-600 uppercase font-semibold">
                   {format(day, 'EEEEEE', { locale: ru })}
                 </div>
-                <div className={isToday ? 'text-primary-600' : ''}>
+                <div className={`text-xl ${isToday ? 'text-blue-600' : 'text-gray-900'}`}>
                   {format(day, 'd')}
                 </div>
               </div>
-              <div className="space-y-1">
+              <div className="space-y-2">
                 {dayLessons.map((lesson) => (
                   <div
                     key={lesson.id}
@@ -87,11 +94,11 @@ const Calendar = ({ lessons, onDayClick, onLessonClick }) => {
                       e.stopPropagation();
                       onLessonClick(lesson);
                     }}
-                    className={`text-xs p-2 rounded border ${getPaymentStatusColor(
+                    className={`text-sm p-2 rounded-lg border-2 font-medium ${getPaymentStatusColor(
                       lesson.payment_status
-                    )}`}
+                    )} cursor-pointer hover:shadow-sm transition-all`}
                   >
-                    <div className="font-medium truncate">
+                    <div className="truncate">
                       {format(new Date(lesson.datetime_start), 'HH:mm')}
                     </div>
                   </div>

@@ -10,6 +10,7 @@ const CalendarPage = () => {
   const [showModal, setShowModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedLesson, setSelectedLesson] = useState(null);
+  const [currentWeekRange, setCurrentWeekRange] = useState({ start: null, end: null });
 
   const [formData, setFormData] = useState({
     student_id: '',
@@ -20,27 +21,38 @@ const CalendarPage = () => {
   });
 
   useEffect(() => {
-    loadData();
+    loadStudents();
   }, []);
 
-  const loadData = async () => {
+  const loadStudents = async () => {
     try {
-      const now = new Date();
-      const start = startOfWeek(now, { locale: ru, weekStartsOn: 1 });
-      const end = endOfWeek(now, { locale: ru, weekStartsOn: 1 });
-
-      const [lessonsRes, studentsRes] = await Promise.all([
-        lessonsAPI.getCalendar({
-          start_date: format(start, 'yyyy-MM-dd'),
-          end_date: format(end, 'yyyy-MM-dd'),
-        }),
-        studentsAPI.getAll(),
-      ]);
-
-      setLessons(lessonsRes.data);
+      const studentsRes = await studentsAPI.getAll();
       setStudents(studentsRes.data);
     } catch (error) {
-      console.error('Error loading calendar:', error);
+      console.error('Error loading students:', error);
+    }
+  };
+
+  const loadLessons = async (start, end) => {
+    try {
+      const lessonsRes = await lessonsAPI.getCalendar({
+        start_date: format(start, 'yyyy-MM-dd'),
+        end_date: format(end, 'yyyy-MM-dd'),
+      });
+      setLessons(lessonsRes.data);
+    } catch (error) {
+      console.error('Error loading lessons:', error);
+    }
+  };
+
+  const handleWeekChange = (weekStart, weekEnd) => {
+    setCurrentWeekRange({ start: weekStart, end: weekEnd });
+    loadLessons(weekStart, weekEnd);
+  };
+
+  const reloadCurrentWeek = () => {
+    if (currentWeekRange.start && currentWeekRange.end) {
+      loadLessons(currentWeekRange.start, currentWeekRange.end);
     }
   };
 
@@ -78,7 +90,7 @@ const CalendarPage = () => {
         await lessonsAPI.create(formData);
       }
       setShowModal(false);
-      loadData();
+      reloadCurrentWeek();
     } catch (error) {
       alert('Ошибка сохранения: ' + (error.response?.data?.detail || error.message));
     }
@@ -90,23 +102,24 @@ const CalendarPage = () => {
     try {
       await lessonsAPI.delete(selectedLesson.id);
       setShowModal(false);
-      loadData();
+      reloadCurrentWeek();
     } catch (error) {
       alert('Ошибка удаления: ' + error.message);
     }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold mb-2">Календарь</h1>
-        <p className="text-gray-600">Планирование занятий</p>
+        <h1 className="text-4xl font-bold mb-3 text-gray-900">Календарь</h1>
+        <p className="text-lg text-gray-600">Планирование занятий с учениками</p>
       </div>
 
       <Calendar
         lessons={lessons}
         onDayClick={handleDayClick}
         onLessonClick={handleLessonClick}
+        onWeekChange={handleWeekChange}
       />
 
       {showModal && (
