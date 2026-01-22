@@ -1,4 +1,4 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
 
 
@@ -13,6 +13,7 @@ class Settings(BaseSettings):
 
     # OpenAI
     OPENAI_API_KEY: Optional[str] = None
+    OPENAI_PROXY: Optional[str] = None
 
     # YooKassa
     YUKASSA_SHOP_ID: Optional[str] = None
@@ -24,9 +25,11 @@ class Settings(BaseSettings):
     # CORS
     CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:3000"]
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=True,
+        extra="ignore",
+    )
 
     @property
     def AI_ENABLED(self) -> bool:

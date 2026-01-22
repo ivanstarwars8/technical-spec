@@ -3,9 +3,11 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from ..database import get_db
 from ..models.user import User
 from ..schemas.user import UserCreate, UserLogin, UserResponse, Token
+from passlib.exc import UnknownHashError
 from ..utils.security import (
     verify_password,
     get_password_hash,
@@ -21,7 +23,8 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 def register(user_data: UserCreate, db: Session = Depends(get_db)):
     """Register new user"""
     # Check if user exists
-    existing_user = db.query(User).filter(User.email == user_data.email).first()
+    normalized_email = user_data.email.strip().lower()
+    existing_user = db.query(User).filter(func.lower(User.email) == normalized_email).first()
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -30,7 +33,7 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
 
     # Create new user
     new_user = User(
-        email=user_data.email,
+        email=normalized_email,
         password_hash=get_password_hash(user_data.password),
         name=user_data.name,
         phone=user_data.phone
@@ -49,9 +52,27 @@ def login(
     db: Session = Depends(get_db)
 ):
     """Login and get JWT token"""
-    user = db.query(User).filter(User.email == form_data.username).first()
+    normalized_email = form_data.username.strip().lower()
+    user = db.query(User).filter(func.lower(User.email) == normalized_email).first()
 
-    if not user or not verify_password(form_data.password, user.password_hash):
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    password_ok = False
+    try:
+        password_ok = verify_password(form_data.password, user.password_hash)
+    except UnknownHashError:
+        # Legacy plaintext passwords: allow login once and rehash
+        if form_data.password == user.password_hash:
+            password_ok = True
+            user.password_hash = get_password_hash(form_data.password)
+            db.commit()
+
+    if not password_ok:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",

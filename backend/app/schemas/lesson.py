@@ -1,12 +1,14 @@
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
+from uuid import UUID
+from uuid import UUID
 from decimal import Decimal
 from ..models.lesson import LessonStatus, PaymentStatus
 
 
 class LessonCreate(BaseModel):
-    student_id: str
+    student_id: UUID
     datetime_start: datetime
     datetime_end: datetime
     status: Optional[LessonStatus] = LessonStatus.SCHEDULED
@@ -16,7 +18,7 @@ class LessonCreate(BaseModel):
 
 
 class LessonUpdate(BaseModel):
-    student_id: Optional[str] = None
+    student_id: Optional[UUID] = None
     datetime_start: Optional[datetime] = None
     datetime_end: Optional[datetime] = None
     status: Optional[LessonStatus] = None
@@ -26,9 +28,9 @@ class LessonUpdate(BaseModel):
 
 
 class LessonResponse(BaseModel):
-    id: str
-    user_id: str
-    student_id: str
+    id: UUID
+    user_id: UUID
+    student_id: UUID
     datetime_start: datetime
     datetime_end: datetime
     status: LessonStatus

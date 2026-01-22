@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, Boolean, Enum as SQLEnum, DateTime, ForeignKey
+from sqlalchemy import Column, String, Integer, Boolean, Enum as SQLEnum, DateTime, ForeignKey, Text
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -20,8 +20,10 @@ class AIHomework(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     student_id = Column(UUID(as_uuid=True), ForeignKey("students.id"), nullable=False)
-    subject = Column(String(50))
-    topic = Column(String(200))
+    # Subject/topic могут содержать расширенный контекст/инструкции генерации,
+    # поэтому храним как TEXT, чтобы не ловить "value too long for type varchar".
+    subject = Column(Text)
+    topic = Column(Text)
     difficulty = Column(SQLEnum(DifficultyLevel))
     tasks_count = Column(Integer)
     generated_tasks = Column(JSONB)

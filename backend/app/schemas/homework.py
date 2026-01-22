@@ -1,11 +1,12 @@
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 from datetime import datetime
+from uuid import UUID
 from ..models.homework import DifficultyLevel
 
 
 class HomeworkGenerate(BaseModel):
-    student_id: str
+    student_id: UUID
     subject: str
     topic: str
     difficulty: DifficultyLevel
@@ -16,9 +17,9 @@ class HomeworkGenerate(BaseModel):
 
 
 class HomeworkResponse(BaseModel):
-    id: str
-    user_id: str
-    student_id: str
+    id: UUID
+    user_id: UUID
+    student_id: UUID
     subject: str
     topic: str
     difficulty: DifficultyLevel

@@ -1,6 +1,7 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime
+from uuid import UUID
 from ..models.user import SubscriptionTier
 
 
@@ -17,7 +18,7 @@ class UserLogin(BaseModel):
 
 
 class UserResponse(BaseModel):
-    id: str
+    id: UUID
     email: str
     name: str
     phone: Optional[str]

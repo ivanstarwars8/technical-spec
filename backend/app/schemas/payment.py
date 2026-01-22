@@ -1,13 +1,14 @@
 from pydantic import BaseModel
 from typing import Optional
 from datetime import date
+from uuid import UUID
 from decimal import Decimal
 from ..models.payment import PaymentMethod, PaymentStatusEnum
 
 
 class PaymentCreate(BaseModel):
-    student_id: str
-    lesson_id: Optional[str] = None
+    student_id: UUID
+    lesson_id: Optional[UUID] = None
     amount: Decimal
     payment_method: PaymentMethod
     payment_date: date
@@ -15,10 +16,10 @@ class PaymentCreate(BaseModel):
 
 
 class PaymentResponse(BaseModel):
-    id: str
-    user_id: str
-    student_id: str
-    lesson_id: Optional[str]
+    id: UUID
+    user_id: UUID
+    student_id: UUID
+    lesson_id: Optional[UUID]
     amount: Decimal
     payment_method: PaymentMethod
     payment_date: date

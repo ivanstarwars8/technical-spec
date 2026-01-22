@@ -1,13 +1,14 @@
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import DataError, SQLAlchemyError
 from ..database import get_db
 from ..models.user import User
 from ..models.student import Student
 from ..models.homework import AIHomework
 from ..schemas.homework import HomeworkGenerate, HomeworkResponse
 from ..utils.security import get_current_user
-from ..services.ai_generator import generate_homework
+from ..services.ai_generator import generate_homework, test_connection
 from ..config import settings
 
 router = APIRouter(prefix="/api/homework", tags=["homework"])
@@ -26,11 +27,18 @@ def generate_homework_tasks(
             detail="AI генератор отключен. Укажите OPENAI_API_KEY в .env",
         )
 
+    def required_credits(tasks_count: int) -> int:
+        if tasks_count <= 5:
+            return 1
+        return (tasks_count + 4) // 5
+
+    credits_needed = required_credits(homework_data.tasks_count)
+
     # Check AI credits
-    if current_user.ai_credits_left <= 0:
+    if current_user.ai_credits_left < credits_needed:
         raise HTTPException(
             status_code=status.HTTP_402_PAYMENT_REQUIRED,
-            detail="No AI credits left. Please upgrade your subscription."
+            detail="Not enough AI credits. Please upgrade your subscription."
         )
 
     # Verify student belongs to user
@@ -54,10 +62,14 @@ def generate_homework_tasks(
 
     try:
         # Generate homework using AI
+        level_value = homework_data.difficulty
+        if hasattr(level_value, "value"):
+            level_value = level_value.value
+
         generated_tasks = generate_homework(
             subject=homework_data.subject,
             topic=homework_data.topic,
-            level=homework_data.difficulty.value,
+            level=level_value,
             tasks_count=homework_data.tasks_count
         )
 
@@ -75,14 +87,44 @@ def generate_homework_tasks(
 
         db.add(new_homework)
 
-        # Deduct AI credit
-        current_user.ai_credits_left -= 1
+        # Deduct AI credits
+        current_user.ai_credits_left -= credits_needed
 
         db.commit()
         db.refresh(new_homework)
 
         return new_homework
 
+    except DataError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Слишком длинный текст в теме/предмете. Сократите или уберите лишний контекст."
+        )
+    except ValueError as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+    except SQLAlchemyError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Ошибка базы данных при сохранении задания."
+        )
+
+
+@router.get("/test")
+def test_ai_connection(current_user: User = Depends(get_current_user)):
+    """Test OpenAI connection"""
+    if not settings.AI_ENABLED:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="AI генератор отключен. Укажите OPENAI_API_KEY в .env",
+        )
+    try:
+        return test_connection()
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

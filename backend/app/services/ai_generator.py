@@ -1,8 +1,24 @@
 import json
+import time
 from typing import Dict, Any
+import httpx
 from openai import OpenAI
 from ..config import settings
 from ..utils.prompts import HOMEWORK_PROMPT
+
+
+def get_openai_client() -> OpenAI:
+    if not settings.OPENAI_API_KEY:
+        raise ValueError("OpenAI API key is not configured")
+
+    if settings.OPENAI_PROXY:
+        http_client = httpx.Client(
+            proxies=settings.OPENAI_PROXY,
+            timeout=60.0,
+        )
+        return OpenAI(api_key=settings.OPENAI_API_KEY, http_client=http_client)
+
+    return OpenAI(api_key=settings.OPENAI_API_KEY)
 
 
 def generate_homework(
@@ -26,10 +42,7 @@ def generate_homework(
     Raises:
         ValueError: If OpenAI API key is not set or generation fails
     """
-    if not settings.OPENAI_API_KEY:
-        raise ValueError("OpenAI API key is not configured")
-
-    client = OpenAI(api_key=settings.OPENAI_API_KEY)
+    client = get_openai_client()
 
     # Prepare prompt
     level_translations = {
@@ -73,3 +86,28 @@ def generate_homework(
 
     except Exception as e:
         raise ValueError(f"Failed to generate homework: {str(e)}")
+
+
+def test_connection() -> Dict[str, Any]:
+    """
+    Test OpenAI connection and return model + latency in ms.
+    """
+    client = get_openai_client()
+    start = time.time()
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a ping test. Reply with OK."},
+                {"role": "user", "content": "ping"}
+            ],
+            temperature=0,
+        )
+        latency_ms = int((time.time() - start) * 1000)
+        return {
+            "model": response.model,
+            "latency_ms": latency_ms,
+            "proxy_enabled": bool(settings.OPENAI_PROXY),
+        }
+    except Exception as e:
+        raise ValueError(f"Failed to test OpenAI connection: {str(e)}")
