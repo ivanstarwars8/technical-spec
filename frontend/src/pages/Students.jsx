@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { studentsAPI } from '../services/api';
 import StudentCard from '../components/StudentCard';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, X } from 'lucide-react';
 
 const Students = () => {
   const [students, setStudents] = useState([]);
@@ -65,25 +65,29 @@ const Students = () => {
   };
 
   if (loading) {
-    return <div>Загрузка...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="text-gray-600 dark:text-slate-400">Загрузка...</div>
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0">
         <div>
-          <h1 className="text-3xl font-bold">Ученики</h1>
-          <p className="text-gray-600">Всего учеников: {students.length}</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-slate-100">Ученики</h1>
+          <p className="text-sm sm:text-base text-gray-600 dark:text-slate-400">Всего учеников: {students.length}</p>
         </div>
-        <button onClick={() => setShowModal(true)} className="btn btn-primary flex items-center gap-2">
+        <button onClick={() => setShowModal(true)} className="btn btn-primary flex items-center justify-center gap-2 w-full sm:w-auto">
           <Plus className="w-5 h-5" />
-          Добавить ученика
+          <span>Добавить ученика</span>
         </button>
       </div>
 
       {/* Search */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-slate-500" />
         <input
           type="text"
           className="input pl-10"
@@ -94,25 +98,33 @@ const Students = () => {
       </div>
 
       {/* Students Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
         {filteredStudents.map((student) => (
           <StudentCard key={student.id} student={student} />
         ))}
       </div>
 
       {filteredStudents.length === 0 && (
-        <div className="text-center text-gray-500 py-12">
+        <div className="text-center text-gray-500 dark:text-slate-500 py-12">
           {searchQuery ? 'Ученики не найдены' : 'Нет учеников. Добавьте первого!'}
         </div>
       )}
 
       {/* Create Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
           <div className="card max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <h2 className="text-2xl font-bold mb-6">Новый ученик</h2>
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-slate-100">Новый ученик</h2>
+              <button
+                onClick={() => setShowModal(false)}
+                className="p-2 text-gray-500 hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-700 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="label">Имя ученика *</label>
                   <input
@@ -134,7 +146,7 @@ const Students = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="label">Имя родителя</label>
                   <input
@@ -155,7 +167,7 @@ const Students = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="label">Предмет *</label>
                   <input
@@ -193,14 +205,14 @@ const Students = () => {
                 />
               </div>
 
-              <div className="flex gap-4">
-                <button type="submit" className="btn btn-primary flex-1">
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-2">
+                <button type="submit" className="btn btn-primary flex-1 order-1 sm:order-1">
                   Создать
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="btn btn-secondary flex-1"
+                  className="btn btn-secondary flex-1 order-2 sm:order-2"
                 >
                   Отмена
                 </button>

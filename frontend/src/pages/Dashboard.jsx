@@ -44,7 +44,11 @@ const Dashboard = () => {
   };
 
   if (loading) {
-    return <div>Загрузка...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="text-gray-600 dark:text-slate-400">Загрузка...</div>
+      </div>
+    );
   }
 
   const statCards = [
@@ -79,23 +83,23 @@ const Dashboard = () => {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-3xl font-bold mb-2">Дашборд</h1>
-        <p className="text-gray-600">Обзор вашей работы</p>
+        <h1 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2 text-gray-900 dark:text-slate-100">Дашборд</h1>
+        <p className="text-sm sm:text-base text-gray-600 dark:text-slate-400">Обзор вашей работы</p>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
         {statCards.map((stat) => (
           <Link key={stat.label} to={stat.link} className="card hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-4">
-              <div className={`${stat.color} p-3 rounded-lg`}>
-                <stat.icon className="w-6 h-6 text-white" />
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
+              <div className={`${stat.color} p-2 sm:p-3 rounded-lg`}>
+                <stat.icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
               <div>
-                <div className="text-2xl font-bold">{stat.value}</div>
-                <div className="text-sm text-gray-600">{stat.label}</div>
+                <div className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-slate-100">{stat.value}</div>
+                <div className="text-xs sm:text-sm text-gray-600 dark:text-slate-400">{stat.label}</div>
               </div>
             </div>
           </Link>
@@ -104,29 +108,29 @@ const Dashboard = () => {
 
       {/* Upcoming Lessons */}
       <div className="card">
-        <h2 className="text-xl font-bold mb-4">Ближайшие занятия</h2>
+        <h2 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4 text-gray-900 dark:text-slate-100">Ближайшие занятия</h2>
         {stats.upcomingLessons.length > 0 ? (
-          <div className="space-y-3">
+          <div className="space-y-2 sm:space-y-3">
             {stats.upcomingLessons.map((lesson) => (
               <div
                 key={lesson.id}
-                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                className="flex flex-col sm:flex-row sm:items-center justify-between p-2 sm:p-3 bg-gray-50 dark:bg-slate-700/50 rounded-lg gap-2 sm:gap-0"
               >
                 <div>
-                  <div className="font-medium">
+                  <div className="font-medium text-gray-900 dark:text-slate-100 text-sm sm:text-base">
                     {format(new Date(lesson.datetime_start), 'EEEE, d MMMM', { locale: ru })}
                   </div>
-                  <div className="text-sm text-gray-600">
+                  <div className="text-xs sm:text-sm text-gray-600 dark:text-slate-400">
                     {format(new Date(lesson.datetime_start), 'HH:mm')} -{' '}
                     {format(new Date(lesson.datetime_end), 'HH:mm')}
                   </div>
                 </div>
-                <div className="text-right">
+                <div className="text-left sm:text-right">
                   <span
                     className={`px-2 py-1 rounded-full text-xs ${
                       lesson.payment_status === 'paid'
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-red-100 text-red-700'
+                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                        : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                     }`}
                   >
                     {lesson.payment_status === 'paid' ? 'Оплачено' : 'Не оплачено'}
@@ -136,25 +140,25 @@ const Dashboard = () => {
             ))}
           </div>
         ) : (
-          <div className="text-center text-gray-500 py-8">
+          <div className="text-center text-gray-500 dark:text-slate-500 py-6 sm:py-8">
             Нет запланированных занятий
           </div>
         )}
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Link to="/students?action=create" className="card hover:shadow-md transition-shadow text-center">
-          <Users className="w-8 h-8 mx-auto mb-2 text-primary-600" />
-          <div className="font-medium">Добавить ученика</div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        <Link to="/students?action=create" className="card hover:shadow-md transition-shadow text-center py-4 sm:py-6">
+          <Users className="w-6 h-6 sm:w-8 sm:h-8 mx-auto mb-2 text-primary-600 dark:text-primary-400" />
+          <div className="font-medium text-sm sm:text-base text-gray-900 dark:text-slate-100">Добавить ученика</div>
         </Link>
-        <Link to="/calendar?action=create" className="card hover:shadow-md transition-shadow text-center">
-          <Calendar className="w-8 h-8 mx-auto mb-2 text-primary-600" />
-          <div className="font-medium">Создать занятие</div>
+        <Link to="/calendar?action=create" className="card hover:shadow-md transition-shadow text-center py-4 sm:py-6">
+          <Calendar className="w-6 h-6 sm:w-8 sm:h-8 mx-auto mb-2 text-primary-600 dark:text-primary-400" />
+          <div className="font-medium text-sm sm:text-base text-gray-900 dark:text-slate-100">Создать занятие</div>
         </Link>
-        <Link to="/homework" className="card hover:shadow-md transition-shadow text-center">
-          <FileText className="w-8 h-8 mx-auto mb-2 text-primary-600" />
-          <div className="font-medium">Сгенерировать ДЗ</div>
+        <Link to="/homework" className="card hover:shadow-md transition-shadow text-center py-4 sm:py-6">
+          <FileText className="w-6 h-6 sm:w-8 sm:h-8 mx-auto mb-2 text-primary-600 dark:text-primary-400" />
+          <div className="font-medium text-sm sm:text-base text-gray-900 dark:text-slate-100">Сгенерировать ДЗ</div>
         </Link>
       </div>
     </div>

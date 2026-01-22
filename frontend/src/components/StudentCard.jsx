@@ -9,23 +9,23 @@ const StudentCard = ({ student }) => {
     >
       <div className="flex items-start justify-between">
         <div className="flex items-start gap-3">
-          <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center">
-            <User className="w-6 h-6 text-primary-600" />
+          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center flex-shrink-0">
+            <User className="w-5 h-5 sm:w-6 sm:h-6 text-primary-600 dark:text-primary-400" />
           </div>
-          <div>
-            <h3 className="font-semibold text-lg">{student.name}</h3>
+          <div className="min-w-0">
+            <h3 className="font-semibold text-base sm:text-lg text-gray-900 dark:text-slate-100 truncate">{student.name}</h3>
             {student.phone && (
-              <div className="flex items-center gap-1 text-sm text-gray-500 mt-1">
-                <Phone className="w-4 h-4" />
-                <span>{student.phone}</span>
+              <div className="flex items-center gap-1 text-xs sm:text-sm text-gray-500 dark:text-slate-500 mt-1">
+                <Phone className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                <span className="truncate">{student.phone}</span>
               </div>
             )}
-            <div className="flex items-center gap-1 text-sm text-gray-600 mt-1">
-              <BookOpen className="w-4 h-4" />
-              <span>{student.subject}</span>
+            <div className="flex items-center gap-1 text-xs sm:text-sm text-gray-600 dark:text-slate-400 mt-1 flex-wrap">
+              <BookOpen className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+              <span className="truncate">{student.subject}</span>
               {student.level && (
                 <>
-                  <span>•</span>
+                  <span className="hidden sm:inline">•</span>
                   <span className="uppercase text-xs font-medium">
                     {student.level.replace('_', ' ')}
                   </span>
@@ -35,7 +35,7 @@ const StudentCard = ({ student }) => {
           </div>
         </div>
         {student.telegram_id && (
-          <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
+          <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs rounded-full flex-shrink-0 ml-2">
             Telegram
           </span>
         )}
