@@ -67,6 +67,27 @@ const Homework = () => {
               </p>
             </div>
           )}
+
+          <div className="card mt-4">
+            <h2 className="text-lg sm:text-xl font-bold mb-2 text-gray-900 dark:text-slate-100">Дополнительные кредиты</h2>
+            <p className="text-sm text-gray-600 dark:text-slate-400 mb-3">
+              Закончились кредиты? Докупите дополнительные по выгодной цене.
+            </p>
+            <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/30 p-4">
+              <div className="text-sm text-gray-700 dark:text-slate-300">
+                Цена зависит от выбранной модели GPT
+              </div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-slate-100 mt-2">
+                От 50 ₽ <span className="text-base font-normal text-gray-600 dark:text-slate-400">за 1 AI кредит</span>
+              </div>
+              <div className="text-xs text-gray-500 dark:text-slate-500 mt-2">
+                * Более мощные модели GPT требуют больше кредитов
+              </div>
+            </div>
+            <div className="text-xs text-gray-500 dark:text-slate-500 mt-3">
+              Докупить AI кредиты можно в настройках, там же где и тарифы.
+            </div>
+          </div>
         </div>
 
         <div className="card">

@@ -4,6 +4,23 @@ import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../hooks/useTheme';
 import { LogIn, Sun, Moon } from 'lucide-react';
 
+const getLoginErrorMessage = (err) => {
+  if (!err?.response) {
+    return 'Не удалось соединиться с сервером. Проверьте адрес API/интернет и попробуйте ещё раз.';
+  }
+
+  const detail = err.response?.data?.detail;
+  if (typeof detail === 'string' && detail.trim()) {
+    return detail;
+  }
+
+  if (err.response?.status === 401) {
+    return 'Неверный email или пароль';
+  }
+
+  return 'Ошибка входа. Попробуйте ещё раз.';
+};
+
 const Login = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -24,7 +41,8 @@ const Login = () => {
       await login(formData.email, formData.password);
       navigate('/dashboard');
     } catch (err) {
-      setError('Неверный email или пароль');
+      console.error('Login error:', err);
+      setError(getLoginErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -43,7 +61,7 @@ const Login = () => {
 
       <div className="card w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-primary-600 dark:text-primary-400 mb-2">TutorAI CRM</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-primary-600 dark:text-primary-400 mb-2">Дош-ло</h1>
           <p className="text-gray-600 dark:text-slate-400">Войдите в свой аккаунт</p>
         </div>
 

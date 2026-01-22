@@ -1,13 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, addWeeks, subWeeks } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-const Calendar = ({ lessons, onDayClick, onLessonClick }) => {
-  const [currentWeek, setCurrentWeek] = useState(new Date());
+const Calendar = ({ lessons, onDayClick, onLessonClick, currentWeek, onWeekChange }) => {
+  const [internalWeek, setInternalWeek] = useState(new Date());
+  const activeWeek = currentWeek ?? internalWeek;
+  const setWeek = onWeekChange ?? setInternalWeek;
 
-  const weekStart = startOfWeek(currentWeek, { locale: ru, weekStartsOn: 1 });
-  const weekEnd = endOfWeek(currentWeek, { locale: ru, weekStartsOn: 1 });
+  const weekStart = startOfWeek(activeWeek, { locale: ru, weekStartsOn: 1 });
+  const weekEnd = endOfWeek(activeWeek, { locale: ru, weekStartsOn: 1 });
   const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
   const getLessonsForDay = (day) => {
@@ -38,20 +40,20 @@ const Calendar = ({ lessons, onDayClick, onLessonClick }) => {
         </h2>
         <div className="flex gap-1 sm:gap-2">
           <button
-            onClick={() => setCurrentWeek(subWeeks(currentWeek, 1))}
+            onClick={() => setWeek(subWeeks(activeWeek, 1))}
             className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg text-gray-600 dark:text-slate-400 transition-colors"
             aria-label="Предыдущая неделя"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
           <button
-            onClick={() => setCurrentWeek(new Date())}
+            onClick={() => setWeek(new Date())}
             className="px-3 sm:px-4 py-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg font-medium text-sm text-gray-700 dark:text-slate-300 transition-colors"
           >
             Сегодня
           </button>
           <button
-            onClick={() => setCurrentWeek(addWeeks(currentWeek, 1))}
+            onClick={() => setWeek(addWeeks(activeWeek, 1))}
             className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg text-gray-600 dark:text-slate-400 transition-colors"
             aria-label="Следующая неделя"
           >

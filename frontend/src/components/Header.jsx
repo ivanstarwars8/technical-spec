@@ -42,7 +42,7 @@ const Header = ({ onMenuToggle, isSidebarOpen }) => {
 
       {/* Лого для мобильных */}
       <div className="lg:hidden flex-1 text-center">
-        <span className="text-lg font-bold text-primary-600 dark:text-primary-400">TutorAI</span>
+        <span className="text-lg font-bold text-primary-600 dark:text-primary-400">Дош-ло</span>
       </div>
 
       {/* Пустое пространство для десктопа */}

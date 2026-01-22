@@ -77,7 +77,7 @@ const Register = () => {
 
       <div className="card w-full max-w-md">
         <div className="text-center mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-primary-600 dark:text-primary-400 mb-2">TutorAI CRM</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-primary-600 dark:text-primary-400 mb-2">Дош-ло</h1>
           <p className="text-gray-600 dark:text-slate-400">Создайте аккаунт</p>
         </div>
 

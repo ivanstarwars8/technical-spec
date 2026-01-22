@@ -33,7 +33,7 @@ const Sidebar = ({ isOpen, onClose }) => {
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex lg:flex-col w-64 bg-white dark:bg-slate-800 border-r border-gray-200 dark:border-slate-700 theme-transition">
         <div className="h-16 flex items-center px-6 border-b border-gray-200 dark:border-slate-700">
-          <h1 className="text-xl font-bold text-primary-600 dark:text-primary-400">TutorAI CRM</h1>
+          <h1 className="text-xl font-bold text-primary-600 dark:text-primary-400">Дош-ло</h1>
         </div>
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {navItems.map((item) => (
@@ -65,7 +65,7 @@ const Sidebar = ({ isOpen, onClose }) => {
         `}
       >
         <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200 dark:border-slate-700">
-          <h1 className="text-xl font-bold text-primary-600 dark:text-primary-400">TutorAI CRM</h1>
+          <h1 className="text-xl font-bold text-primary-600 dark:text-primary-400">Дош-ло</h1>
           <button
             onClick={onClose}
             className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-700 transition-colors"

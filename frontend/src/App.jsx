@@ -6,6 +6,9 @@ import { useAuth } from './hooks/useAuth';
 // Pages
 import Login from './pages/Login';
 import Register from './pages/Register';
+import Landing from './pages/Landing';
+import Privacy from './pages/Privacy';
+import Terms from './pages/Terms';
 import Dashboard from './pages/Dashboard';
 import Students from './pages/Students';
 import StudentDetail from './pages/StudentDetail';
@@ -55,10 +58,37 @@ const PublicRoute = ({ children }) => {
   return children;
 };
 
+// Landing Route Component (redirect to dashboard if logged in)
+const LandingRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-900">
+        <div className="text-xl text-gray-600 dark:text-slate-400">Загрузка...</div>
+      </div>
+    );
+  }
+
+  if (user) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return children;
+};
+
 function AppRoutes() {
   return (
     <Routes>
       {/* Public Routes */}
+      <Route
+        path="/"
+        element={
+          <LandingRoute>
+            <Landing />
+          </LandingRoute>
+        }
+      />
       <Route
         path="/login"
         element={
@@ -75,6 +105,8 @@ function AppRoutes() {
           </PublicRoute>
         }
       />
+      <Route path="/privacy" element={<Privacy />} />
+      <Route path="/terms" element={<Terms />} />
 
       {/* Protected Routes */}
       <Route
@@ -94,8 +126,7 @@ function AppRoutes() {
       </Route>
 
       {/* Default Redirect */}
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

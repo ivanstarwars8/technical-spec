@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { paymentsAPI, studentsAPI, lessonsAPI } from '../services/api';
-import { format } from 'date-fns';
+import { format, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { DollarSign, TrendingUp, AlertCircle, Plus, X } from 'lucide-react';
+import { DollarSign, TrendingUp, AlertCircle, Plus, X, Download, Wallet, CalendarClock, Users } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 const Payments = () => {
   const [payments, setPayments] = useState([]);
@@ -32,6 +33,46 @@ const Payments = () => {
 
   const selectedLessons = lessons.filter((lesson) => selectedLessonIds.includes(lesson.id));
   const selectedRemainingTotal = selectedLessons.reduce((sum, lesson) => sum + getLessonRemaining(lesson), 0);
+  const now = new Date();
+  const monthInterval = {
+    start: startOfMonth(now),
+    end: endOfMonth(now),
+  };
+
+  const totalRevenue = payments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+  const paymentsThisMonth = payments.filter((payment) =>
+    isWithinInterval(new Date(payment.payment_date), monthInterval)
+  );
+  const revenueThisMonth = paymentsThisMonth.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+  const averagePayment = payments.length ? totalRevenue / payments.length : 0;
+  const debtTotal = debtors.reduce((sum, debtor) => sum + Number(debtor.total_debt || 0), 0);
+
+  const paymentTotalsByStudent = payments.reduce((acc, payment) => {
+    const key = payment.student_id;
+    acc[key] = (acc[key] || 0) + Number(payment.amount || 0);
+    return acc;
+  }, {});
+
+  const topStudentId = Object.keys(paymentTotalsByStudent).reduce((maxId, currentId) => {
+    if (!maxId) return currentId;
+    return paymentTotalsByStudent[currentId] > paymentTotalsByStudent[maxId] ? currentId : maxId;
+  }, null);
+
+  const topStudent = students.find((student) => student.id === topStudentId);
+  const lastPaymentDate = payments.length
+    ? payments.reduce((latest, payment) => {
+        const date = new Date(payment.payment_date);
+        return date > latest ? date : latest;
+      }, new Date(payments[0].payment_date))
+    : null;
+
+  const getPaymentMethodLabel = (method) => {
+    if (method === 'cash') return 'Наличные';
+    if (method === 'card') return 'Карта';
+    return 'Перевод';
+  };
+
+  const formatCurrency = (value) => `${Number(value || 0).toFixed(2)} ₽`;
 
   useEffect(() => {
     loadData();
@@ -84,13 +125,31 @@ const Payments = () => {
           alert('Выберите хотя бы один урок для массовой оплаты');
           return;
         }
-        await paymentsAPI.bulkCreate({
-          student_id: formData.student_id,
-          lesson_ids: selectedLessonIds,
-          amount: formData.amount,
-          payment_method: formData.payment_method,
-          payment_date: formData.payment_date,
-        });
+        const totalAmount = Number(formData.amount || 0);
+        if (!Number.isFinite(totalAmount) || totalAmount <= 0) {
+          alert('Укажите сумму для массовой оплаты');
+          return;
+        }
+
+        const lessonsToPay = lessons.filter((lesson) => selectedLessonIds.includes(lesson.id));
+        const remainingTotal = lessonsToPay.reduce((sum, lesson) => sum + getLessonRemaining(lesson), 0);
+        const useRemaining = remainingTotal > 0 && Math.abs(remainingTotal - totalAmount) < 0.01;
+        const perLessonAmount = useRemaining
+          ? null
+          : Number((totalAmount / lessonsToPay.length).toFixed(2));
+
+        await Promise.all(
+          lessonsToPay.map((lesson) => {
+            const amount = useRemaining ? getLessonRemaining(lesson) : perLessonAmount;
+            return paymentsAPI.create({
+              student_id: formData.student_id,
+              lesson_id: lesson.id,
+              amount,
+              payment_method: formData.payment_method,
+              payment_date: formData.payment_date,
+            });
+          })
+        );
       } else {
         await paymentsAPI.create(formData);
       }
@@ -110,6 +169,39 @@ const Payments = () => {
     }
   };
 
+  const handleExportExcel = () => {
+    if (!payments.length) {
+      alert('Нет данных для экспорта');
+      return;
+    }
+
+    const rows = payments.map((payment) => {
+      const student = students.find((s) => s.id === payment.student_id);
+      return {
+        'Дата платежа': format(new Date(payment.payment_date), 'yyyy-MM-dd'),
+        'Ученик': student?.name || '—',
+        'Сумма (₽)': Number(payment.amount || 0),
+        'Способ оплаты': getPaymentMethodLabel(payment.payment_method),
+        'ID урока': payment.lesson_id || '',
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    worksheet['!cols'] = [
+      { wch: 12 },
+      { wch: 26 },
+      { wch: 12 },
+      { wch: 16 },
+      { wch: 12 },
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Платежи');
+
+    const fileName = `payments-${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
@@ -125,10 +217,19 @@ const Payments = () => {
           <h1 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2 text-gray-900 dark:text-slate-100">Платежи</h1>
           <p className="text-sm sm:text-base text-gray-600 dark:text-slate-400">Учёт доходов и должников</p>
         </div>
-        <button onClick={() => setShowModal(true)} className="btn btn-primary flex items-center justify-center gap-2 w-full sm:w-auto">
-          <Plus className="w-5 h-5" />
-          <span>Добавить платёж</span>
-        </button>
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <button
+            onClick={handleExportExcel}
+            className="btn btn-secondary flex items-center justify-center gap-2 w-full sm:w-auto"
+          >
+            <Download className="w-5 h-5" />
+            <span>Экспорт в Excel</span>
+          </button>
+          <button onClick={() => setShowModal(true)} className="btn btn-primary flex items-center justify-center gap-2 w-full sm:w-auto">
+            <Plus className="w-5 h-5" />
+            <span>Добавить платёж</span>
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -165,6 +266,63 @@ const Payments = () => {
             <div>
               <div className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-slate-100">{debtors.length}</div>
               <div className="text-xs sm:text-sm text-gray-600 dark:text-slate-400">Должников</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Extra Metrics */}
+      <div className="card">
+        <h2 className="text-lg sm:text-xl font-bold mb-4 text-gray-900 dark:text-slate-100">Метрики</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div className="p-4 rounded-lg bg-gray-50 dark:bg-slate-700/50">
+            <div className="flex items-center gap-3">
+              <Wallet className="w-5 h-5 text-green-600 dark:text-green-400" />
+              <div className="text-sm text-gray-600 dark:text-slate-400">Общий доход</div>
+            </div>
+            <div className="text-2xl font-bold text-gray-900 dark:text-slate-100 mt-2">{formatCurrency(totalRevenue)}</div>
+          </div>
+          <div className="p-4 rounded-lg bg-gray-50 dark:bg-slate-700/50">
+            <div className="flex items-center gap-3">
+              <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              <div className="text-sm text-gray-600 dark:text-slate-400">Средний чек</div>
+            </div>
+            <div className="text-2xl font-bold text-gray-900 dark:text-slate-100 mt-2">{formatCurrency(averagePayment)}</div>
+          </div>
+          <div className="p-4 rounded-lg bg-gray-50 dark:bg-slate-700/50">
+            <div className="flex items-center gap-3">
+              <CalendarClock className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              <div className="text-sm text-gray-600 dark:text-slate-400">Платежей за месяц</div>
+            </div>
+            <div className="text-2xl font-bold text-gray-900 dark:text-slate-100 mt-2">{paymentsThisMonth.length}</div>
+            <div className="text-xs text-gray-500 dark:text-slate-500 mt-1">Сумма: {formatCurrency(revenueThisMonth)}</div>
+          </div>
+          <div className="p-4 rounded-lg bg-gray-50 dark:bg-slate-700/50">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
+              <div className="text-sm text-gray-600 dark:text-slate-400">Общий долг</div>
+            </div>
+            <div className="text-2xl font-bold text-gray-900 dark:text-slate-100 mt-2">{formatCurrency(debtTotal)}</div>
+          </div>
+          <div className="p-4 rounded-lg bg-gray-50 dark:bg-slate-700/50">
+            <div className="flex items-center gap-3">
+              <Users className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+              <div className="text-sm text-gray-600 dark:text-slate-400">Топ-ученик по оплатам</div>
+            </div>
+            <div className="text-xl font-bold text-gray-900 dark:text-slate-100 mt-2">
+              {topStudent?.name || '—'}
+            </div>
+            <div className="text-xs text-gray-500 dark:text-slate-500 mt-1">
+              {topStudentId ? formatCurrency(paymentTotalsByStudent[topStudentId]) : '—'}
+            </div>
+          </div>
+          <div className="p-4 rounded-lg bg-gray-50 dark:bg-slate-700/50">
+            <div className="flex items-center gap-3">
+              <CalendarClock className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
+              <div className="text-sm text-gray-600 dark:text-slate-400">Последний платеж</div>
+            </div>
+            <div className="text-xl font-bold text-gray-900 dark:text-slate-100 mt-2">
+              {lastPaymentDate ? format(lastPaymentDate, 'd MMMM yyyy', { locale: ru }) : '—'}
             </div>
           </div>
         </div>

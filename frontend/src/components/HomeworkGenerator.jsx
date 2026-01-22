@@ -11,16 +11,69 @@ const HomeworkGenerator = ({ students }) => {
     topic: '',
     difficulty: 'oge',
     tasks_count: 5,
+    student_context: '',
+    last_mistakes: '',
+    teaching_goal: 'practice',
+    extra_instructions: '',
+    difficulty_mix: 'balanced',
+    show_solutions: true,
   });
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [copied, setCopied] = useState(false);
 
+  const calculateCredits = (tasksCount) => {
+    const count = Number(tasksCount) || 0;
+    if (count <= 5) return 1;
+    return Math.ceil(count / 5);
+  };
+
+  const buildTopicPrompt = () => {
+    const parts = [formData.topic.trim()];
+    if (formData.student_context.trim()) {
+      parts.push(`Контекст ученика: ${formData.student_context.trim()}`);
+    }
+    if (formData.last_mistakes.trim()) {
+      parts.push(`Последние ошибки: ${formData.last_mistakes.trim()}`);
+    }
+    if (formData.teaching_goal) {
+      const goalLabel =
+        formData.teaching_goal === 'practice'
+          ? 'Закрепление темы'
+          : formData.teaching_goal === 'exam'
+          ? 'Подготовка к экзамену'
+          : 'Разбор ошибок и пробелов';
+      parts.push(`Цель урока: ${goalLabel}`);
+    }
+    if (formData.difficulty_mix) {
+      const mixLabel =
+        formData.difficulty_mix === 'easy'
+          ? 'Больше простых задач'
+          : formData.difficulty_mix === 'hard'
+          ? 'Больше сложных задач'
+          : 'Сбалансированная сложность';
+      parts.push(`Сложность: ${mixLabel}`);
+    }
+    if (formData.show_solutions) {
+      parts.push('Покажи решения по шагам');
+    } else {
+      parts.push('Без подробных решений, только ответы');
+    }
+    if (formData.extra_instructions.trim()) {
+      parts.push(`Доп. инструкции: ${formData.extra_instructions.trim()}`);
+    }
+    return parts.filter(Boolean).join('\n');
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const response = await homeworkAPI.generate(formData);
+      const payload = {
+        ...formData,
+        topic: buildTopicPrompt(),
+      };
+      const response = await homeworkAPI.generate(payload);
       setResult(response.data);
       if (refreshUser) {
         await refreshUser();
@@ -46,6 +99,15 @@ const HomeworkGenerator = ({ students }) => {
     <div className="space-y-4 sm:space-y-6">
       <form onSubmit={handleSubmit} className="card space-y-4">
         <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-slate-100">Сгенерировать домашнее задание</h2>
+
+        <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+          <div className="font-semibold">Расчёт AI кредитов</div>
+          <div className="mt-1">1 задание (до 5 задач) = 1 AI кредит</div>
+          <div>От 5 задач в задании = 2+ AI кредита</div>
+          <div className="mt-2 text-xs text-blue-600">
+            Сейчас используется самая дешёвая модель. В будущем добавим выбор версии GPT.
+          </div>
+        </div>
 
         <div>
           <label className="label">Ученик</label>
@@ -112,6 +174,83 @@ const HomeworkGenerator = ({ students }) => {
             value={formData.tasks_count}
             onChange={(e) => setFormData({ ...formData, tasks_count: parseInt(e.target.value) })}
             required
+          />
+          <div className="text-xs text-gray-600 dark:text-slate-400 mt-1">
+            Примерный расход: <span className="font-semibold">{calculateCredits(formData.tasks_count)}</span> AI кредитов
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="label">Цель занятия</label>
+            <select
+              className="input"
+              value={formData.teaching_goal}
+              onChange={(e) => setFormData({ ...formData, teaching_goal: e.target.value })}
+            >
+              <option value="practice">Закрепление темы</option>
+              <option value="exam">Подготовка к экзамену</option>
+              <option value="gaps">Разбор ошибок и пробелов</option>
+            </select>
+          </div>
+          <div>
+            <label className="label">Контекст ученика</label>
+            <input
+              type="text"
+              className="input"
+              value={formData.student_context}
+              onChange={(e) => setFormData({ ...formData, student_context: e.target.value })}
+              placeholder="Класс, сильные стороны, темп, формат"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="label">Распределение сложности</label>
+            <select
+              className="input"
+              value={formData.difficulty_mix}
+              onChange={(e) => setFormData({ ...formData, difficulty_mix: e.target.value })}
+            >
+              <option value="balanced">Сбалансированно</option>
+              <option value="easy">Больше простых</option>
+              <option value="hard">Больше сложных</option>
+            </select>
+          </div>
+          <div className="flex items-center gap-3 mt-6 sm:mt-0">
+            <input
+              id="show-solutions"
+              type="checkbox"
+              className="rounded border-gray-300 dark:border-slate-600 dark:bg-slate-700"
+              checked={formData.show_solutions}
+              onChange={(e) => setFormData({ ...formData, show_solutions: e.target.checked })}
+            />
+            <label htmlFor="show-solutions" className="text-sm text-gray-700 dark:text-slate-300">
+              Решения по шагам
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <label className="label">Последние ошибки ученика</label>
+          <textarea
+            className="input"
+            rows="2"
+            value={formData.last_mistakes}
+            onChange={(e) => setFormData({ ...formData, last_mistakes: e.target.value })}
+            placeholder="Напр.: путает формулы, теряет знаки, ошибки в дробях"
+          />
+        </div>
+
+        <div>
+          <label className="label">Дополнительные инструкции</label>
+          <textarea
+            className="input"
+            rows="2"
+            value={formData.extra_instructions}
+            onChange={(e) => setFormData({ ...formData, extra_instructions: e.target.value })}
+            placeholder="Напр.: добавь 1 задачу на логику, избегай сложных терминов"
           />
         </div>
 

@@ -262,6 +262,21 @@ const Settings = () => {
             );
           })}
         </div>
+
+        <div className="mt-6 rounded-lg border border-gray-200 dark:border-slate-700 p-4">
+          <div className="flex items-center gap-3 mb-2">
+            <Sparkles className="w-5 h-5 text-primary-600 dark:text-primary-400" />
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-slate-100">
+              Дополнительные AI кредиты
+            </h3>
+          </div>
+          <p className="text-sm text-gray-600 dark:text-slate-400 mb-3">
+            Докупайте кредиты для генерации заданий в любое время.
+          </p>
+          <button className="btn btn-secondary" disabled>
+            Оплата отключена
+          </button>
+        </div>
       </div>
 
       {/* AI Connection Test */}

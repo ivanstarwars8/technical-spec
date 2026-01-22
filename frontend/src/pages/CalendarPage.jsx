@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { lessonsAPI, studentsAPI, paymentsAPI } from '../services/api';
 import Calendar from '../components/Calendar';
-import { format, startOfWeek, endOfWeek } from 'date-fns';
+import { format, startOfWeek, endOfWeek, addMinutes } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { X } from 'lucide-react';
 
@@ -13,6 +13,9 @@ const CalendarPage = () => {
   const [selectedLesson, setSelectedLesson] = useState(null);
   const [savingPayment, setSavingPayment] = useState(false);
   const [paymentError, setPaymentError] = useState('');
+  const [currentWeek, setCurrentWeek] = useState(new Date());
+  const [durationPreset, setDurationPreset] = useState('1');
+  const [customDuration, setCustomDuration] = useState('1');
 
   const [filters, setFilters] = useState({
     student_id: '',
@@ -34,14 +37,13 @@ const CalendarPage = () => {
   });
 
   useEffect(() => {
-    loadData();
-  }, []);
+    loadData(currentWeek);
+  }, [currentWeek]);
 
-  const loadData = async () => {
+  const loadData = async (weekDate = new Date()) => {
     try {
-      const now = new Date();
-      const start = startOfWeek(now, { locale: ru, weekStartsOn: 1 });
-      const end = endOfWeek(now, { locale: ru, weekStartsOn: 1 });
+      const start = startOfWeek(weekDate, { locale: ru, weekStartsOn: 1 });
+      const end = endOfWeek(weekDate, { locale: ru, weekStartsOn: 1 });
 
       const [lessonsRes, studentsRes] = await Promise.all([
         lessonsAPI.getCalendar({
@@ -58,10 +60,48 @@ const CalendarPage = () => {
     }
   };
 
+  const getDurationHours = () => {
+    if (durationPreset === 'custom') {
+      const custom = Number(customDuration);
+      return Number.isFinite(custom) && custom > 0 ? custom : 1;
+    }
+    return Number(durationPreset);
+  };
+
+  const applyEndTime = (startValue, hours) => {
+    if (!startValue) return;
+    const startDate = new Date(startValue);
+    if (Number.isNaN(startDate.getTime())) return;
+    const endDate = addMinutes(startDate, Math.round(hours * 60));
+    setFormData((prev) => ({
+      ...prev,
+      datetime_end: format(endDate, "yyyy-MM-dd'T'HH:mm"),
+    }));
+  };
+
+  const handleStartChange = (value) => {
+    setFormData((prev) => ({ ...prev, datetime_start: value }));
+    applyEndTime(value, getDurationHours());
+  };
+
+  const handleDurationPresetChange = (value) => {
+    setDurationPreset(value);
+    const hours = value === 'custom' ? Number(customDuration) || 1 : Number(value);
+    applyEndTime(formData.datetime_start, hours);
+  };
+
+  const handleCustomDurationChange = (value) => {
+    setCustomDuration(value);
+    applyEndTime(formData.datetime_start, Number(value) || 1);
+  };
+
   const handleDayClick = (date) => {
     setSelectedDate(date);
     setSelectedLesson(null);
     setPaymentError('');
+    setCurrentWeek(date);
+    setDurationPreset('1');
+    setCustomDuration('1');
     setFormData({
       student_id: '',
       datetime_start: format(date, "yyyy-MM-dd'T'10:00"),
@@ -75,6 +115,18 @@ const CalendarPage = () => {
   const handleLessonClick = (lesson) => {
     setSelectedLesson(lesson);
     setPaymentError('');
+    setCurrentWeek(new Date(lesson.datetime_start));
+    const startDate = new Date(lesson.datetime_start);
+    const endDate = new Date(lesson.datetime_end);
+    const diffMinutes = Math.max(0, Math.round((endDate - startDate) / 60000));
+    const diffHours = diffMinutes / 60 || 1;
+    if (['1', '2', '3'].includes(String(diffHours))) {
+      setDurationPreset(String(diffHours));
+      setCustomDuration(String(diffHours));
+    } else {
+      setDurationPreset('custom');
+      setCustomDuration(String(diffHours));
+    }
     setFormData({
       student_id: lesson.student_id,
       datetime_start: format(new Date(lesson.datetime_start), "yyyy-MM-dd'T'HH:mm"),
@@ -162,6 +214,8 @@ const CalendarPage = () => {
         lessons={lessons}
         onDayClick={handleDayClick}
         onLessonClick={handleLessonClick}
+        currentWeek={currentWeek}
+        onWeekChange={setCurrentWeek}
       />
 
       {/* Lessons Table */}
@@ -293,7 +347,7 @@ const CalendarPage = () => {
                     type="datetime-local"
                     className="input"
                     value={formData.datetime_start}
-                    onChange={(e) => setFormData({ ...formData, datetime_start: e.target.value })}
+                    onChange={(e) => handleStartChange(e.target.value)}
                     required
                   />
                 </div>
@@ -307,6 +361,35 @@ const CalendarPage = () => {
                     required
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="label">Длительность</label>
+                  <select
+                    className="input"
+                    value={durationPreset}
+                    onChange={(e) => handleDurationPresetChange(e.target.value)}
+                  >
+                    <option value="1">1 час</option>
+                    <option value="2">2 часа</option>
+                    <option value="3">3 часа</option>
+                    <option value="custom">Своё значение</option>
+                  </select>
+                </div>
+                {durationPreset === 'custom' && (
+                  <div>
+                    <label className="label">Своя длительность (часы)</label>
+                    <input
+                      type="number"
+                      className="input"
+                      min="0.5"
+                      step="0.5"
+                      value={customDuration}
+                      onChange={(e) => handleCustomDurationChange(e.target.value)}
+                    />
+                  </div>
+                )}
               </div>
 
               <div>

@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const envBaseUrl = import.meta.env.VITE_API_URL;
+const API_BASE_URL = envBaseUrl && !envBaseUrl.includes('localhost') ? envBaseUrl : '';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -28,6 +29,16 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      const requestUrl = error.config?.url || '';
+      const isAuthMeRequest = requestUrl.includes('/api/auth/me');
+      if (isAuthMeRequest) {
+        return Promise.reject(error);
+      }
+      const publicPaths = ['/', '/login', '/register'];
+      const currentPath = window.location.pathname;
+      if (publicPaths.includes(currentPath)) {
+        return Promise.reject(error);
+      }
       localStorage.removeItem('token');
       window.location.href = '/login';
     }
@@ -78,6 +89,7 @@ export const homeworkAPI = {
   generate: (data) => api.post('/api/homework/generate', data),
   getHistory: () => api.get('/api/homework/'),
   getById: (id) => api.get(`/api/homework/${id}`),
+  testConnection: () => api.get('/api/homework/test'),
 };
 
 // Subscription API
