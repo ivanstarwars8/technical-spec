@@ -132,6 +132,13 @@ def update_lesson(
     for field, value in update_data.items():
         setattr(lesson, field, value)
 
+    # Validate datetime range after update
+    if lesson.datetime_start >= lesson.datetime_end:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="datetime_start must be before datetime_end"
+        )
+
     db.commit()
     db.refresh(lesson)
 

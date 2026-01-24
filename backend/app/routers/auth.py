@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
@@ -7,7 +7,6 @@ from sqlalchemy import func
 from ..database import get_db
 from ..models.user import User
 from ..schemas.user import UserCreate, UserLogin, UserResponse, Token
-from passlib.exc import UnknownHashError
 from ..utils.security import (
     verify_password,
     get_password_hash,
@@ -62,17 +61,7 @@ def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    password_ok = False
-    try:
-        password_ok = verify_password(form_data.password, user.password_hash)
-    except UnknownHashError:
-        # Legacy plaintext passwords: allow login once and rehash
-        if form_data.password == user.password_hash:
-            password_ok = True
-            user.password_hash = get_password_hash(form_data.password)
-            db.commit()
-
-    if not password_ok:
+    if not verify_password(form_data.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -80,7 +69,7 @@ def login(
         )
 
     # Update last login
-    user.last_login = datetime.utcnow()
+    user.last_login = datetime.now(timezone.utc)
     db.commit()
 
     # Create access token

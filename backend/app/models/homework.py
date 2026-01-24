@@ -1,7 +1,7 @@
 from sqlalchemy import Column, String, Integer, Boolean, Enum as SQLEnum, DateTime, ForeignKey, Text
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 import enum
 from ..database import Base
@@ -28,7 +28,7 @@ class AIHomework(Base):
     tasks_count = Column(Integer)
     generated_tasks = Column(JSONB)
     sent_via_telegram = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
 
     # Relationships
     user = relationship("User", back_populates="ai_homeworks")

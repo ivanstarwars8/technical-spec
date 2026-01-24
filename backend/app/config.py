@@ -1,5 +1,9 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import field_validator
 from typing import Optional
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -30,6 +34,30 @@ class Settings(BaseSettings):
         case_sensitive=True,
         extra="ignore",
     )
+
+    @field_validator('SECRET_KEY')
+    @classmethod
+    def validate_secret_key(cls, v: str) -> str:
+        weak_keys = [
+            "your-secret-key-change-in-production",
+            "secret",
+            "secret-key",
+            "change-me",
+            "changeme",
+            "dev",
+            "development"
+        ]
+        if v.lower() in weak_keys or len(v) < 32:
+            logger.critical(
+                "⚠️  SECURITY WARNING: Weak SECRET_KEY detected! "
+                "Generate a strong key with: python -c 'import secrets; print(secrets.token_urlsafe(32))'"
+            )
+            if v == "your-secret-key-change-in-production":
+                raise ValueError(
+                    "SECRET_KEY must be changed from default value! "
+                    "Generate a strong key with: python -c 'import secrets; print(secrets.token_urlsafe(32))'"
+                )
+        return v
 
     @property
     def AI_ENABLED(self) -> bool:

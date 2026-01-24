@@ -1,7 +1,7 @@
 from sqlalchemy import Column, String, BigInteger, Text, Enum as SQLEnum, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 import enum
 from ..database import Base
@@ -28,7 +28,7 @@ class Student(Base):
     subject = Column(String(50), nullable=False)
     level = Column(SQLEnum(StudentLevel))
     notes = Column(Text)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
     user = relationship("User", back_populates="students")

@@ -1,10 +1,48 @@
 import json
 import time
-from typing import Dict, Any
+import logging
+from typing import Dict, Any, List
 import httpx
-from openai import OpenAI
+from openai import OpenAI, OpenAIError
 from ..config import settings
 from ..utils.prompts import HOMEWORK_PROMPT
+
+logger = logging.getLogger(__name__)
+
+
+def validate_homework_structure(data: Dict[str, Any], expected_tasks: int) -> bool:
+    """
+    Validate that the homework JSON has the expected structure.
+
+    Expected structure:
+    {
+        "tasks": [
+            {"number": 1, "text": "...", "solution": "...", "answer": "..."},
+            ...
+        ]
+    }
+    """
+    if not isinstance(data, dict):
+        return False
+
+    if "tasks" not in data:
+        return False
+
+    tasks = data["tasks"]
+    if not isinstance(tasks, list):
+        return False
+
+    if len(tasks) != expected_tasks:
+        logger.warning(f"Expected {expected_tasks} tasks, got {len(tasks)}")
+
+    for task in tasks:
+        if not isinstance(task, dict):
+            return False
+        required_fields = ["number", "text", "solution", "answer"]
+        if not all(field in task for field in required_fields):
+            return False
+
+    return True
 
 
 def get_openai_client() -> OpenAI:
@@ -82,10 +120,25 @@ def generate_homework(
         content = response.choices[0].message.content
         result = json.loads(content)
 
+        # Validate structure
+        if not validate_homework_structure(result, tasks_count):
+            logger.error(f"Invalid homework structure from OpenAI: {result}")
+            raise ValueError("AI returned invalid homework structure")
+
         return result
 
+    except OpenAIError as e:
+        logger.error(f"OpenAI API error: {type(e).__name__}: {str(e)}")
+        raise ValueError("AI service temporarily unavailable. Please try again later.")
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse OpenAI response as JSON: {str(e)}")
+        raise ValueError("AI returned invalid response format")
+    except ValueError:
+        # Re-raise our own ValueError messages
+        raise
     except Exception as e:
-        raise ValueError(f"Failed to generate homework: {str(e)}")
+        logger.error(f"Unexpected error in generate_homework: {type(e).__name__}: {str(e)}")
+        raise ValueError("Failed to generate homework. Please try again.")
 
 
 def test_connection() -> Dict[str, Any]:
@@ -109,5 +162,9 @@ def test_connection() -> Dict[str, Any]:
             "latency_ms": latency_ms,
             "proxy_enabled": bool(settings.OPENAI_PROXY),
         }
+    except OpenAIError as e:
+        logger.error(f"OpenAI connection test failed: {type(e).__name__}: {str(e)}")
+        raise ValueError("AI service connection failed")
     except Exception as e:
-        raise ValueError(f"Failed to test OpenAI connection: {str(e)}")
+        logger.error(f"Unexpected error in test_connection: {type(e).__name__}: {str(e)}")
+        raise ValueError("Failed to test AI connection")

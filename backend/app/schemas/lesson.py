@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from typing import Optional
 from datetime import datetime
 from uuid import UUID
@@ -16,6 +16,12 @@ class LessonCreate(BaseModel):
     amount: Optional[Decimal] = None
     notes: Optional[str] = None
 
+    @model_validator(mode='after')
+    def validate_datetime_range(self):
+        if self.datetime_start >= self.datetime_end:
+            raise ValueError('datetime_start must be before datetime_end')
+        return self
+
 
 class LessonUpdate(BaseModel):
     student_id: Optional[UUID] = None
@@ -25,6 +31,13 @@ class LessonUpdate(BaseModel):
     payment_status: Optional[PaymentStatus] = None
     amount: Optional[Decimal] = None
     notes: Optional[str] = None
+
+    @model_validator(mode='after')
+    def validate_datetime_range(self):
+        if self.datetime_start is not None and self.datetime_end is not None:
+            if self.datetime_start >= self.datetime_end:
+                raise ValueError('datetime_start must be before datetime_end')
+        return self
 
 
 class LessonResponse(BaseModel):
