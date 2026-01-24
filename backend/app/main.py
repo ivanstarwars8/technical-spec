@@ -65,8 +65,13 @@ def get_features():
     return {
         "ai_homework": settings.AI_ENABLED,
         "billing": settings.BILLING_ENABLED,
-        "ai_homework_reason": None if settings.AI_ENABLED else "OPENAI_API_KEY не задан",
+        "ai_homework_reason": None if settings.AI_ENABLED else "AI ключи не заданы (OPENAI_API_KEY / claude_API_KEY)",
         "billing_reason": None if settings.BILLING_ENABLED else "YUKASSA_SHOP_ID/YUKASSA_SECRET_KEY не заданы",
+        "ai_providers": {
+            "gpt": bool(settings.OPENAI_API_KEY),
+            "claude": bool(settings.CLAUDE_API_KEY_EFFECTIVE),
+        },
+        "ai_proxy_enabled": bool(settings.OPENAI_PROXY),
     }
 
 

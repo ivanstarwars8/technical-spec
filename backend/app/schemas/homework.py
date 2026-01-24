@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Literal
 from datetime import datetime
 from uuid import UUID
 from ..models.homework import DifficultyLevel
@@ -11,6 +11,7 @@ class HomeworkGenerate(BaseModel):
     topic: str
     difficulty: DifficultyLevel
     tasks_count: int = 5
+    ai_provider: Literal["gpt", "claude"] = "gpt"
 
     class Config:
         use_enum_values = True

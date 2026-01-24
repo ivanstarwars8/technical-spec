@@ -19,6 +19,12 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: Optional[str] = None
     OPENAI_PROXY: Optional[str] = None
 
+    # Claude (Anthropic)
+    # поддерживаем оба варианта env-ключа: CLAUDE_API_KEY и claude_API_KEY
+    CLAUDE_API_KEY: Optional[str] = None
+    claude_API_KEY: Optional[str] = None
+    CLAUDE_MODEL: str = "claude-3-5-haiku-latest"
+
     # YooKassa
     YUKASSA_SHOP_ID: Optional[str] = None
     YUKASSA_SECRET_KEY: Optional[str] = None
@@ -60,8 +66,12 @@ class Settings(BaseSettings):
         return v
 
     @property
+    def CLAUDE_API_KEY_EFFECTIVE(self) -> Optional[str]:
+        return self.CLAUDE_API_KEY or self.claude_API_KEY
+
+    @property
     def AI_ENABLED(self) -> bool:
-        return bool(self.OPENAI_API_KEY)
+        return bool(self.OPENAI_API_KEY or self.CLAUDE_API_KEY_EFFECTIVE)
 
     @property
     def BILLING_ENABLED(self) -> bool:

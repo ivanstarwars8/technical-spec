@@ -24,15 +24,32 @@ def generate_homework_tasks(
     if not settings.AI_ENABLED:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="AI генератор отключен. Укажите OPENAI_API_KEY в .env",
+            detail="AI генератор отключен. Укажите OPENAI_API_KEY или claude_API_KEY в .env",
         )
 
-    def required_credits(tasks_count: int) -> int:
+    def required_credits(tasks_count: int, provider: str) -> int:
         if tasks_count <= 5:
-            return 1
-        return (tasks_count + 4) // 5
+            base = 1
+        else:
+            base = (tasks_count + 4) // 5
+        # Claude дороже по кредитам
+        if provider == "claude":
+            return base * 2
+        return base
 
-    credits_needed = required_credits(homework_data.tasks_count)
+    provider = homework_data.ai_provider or "gpt"
+    if provider == "claude" and not settings.CLAUDE_API_KEY_EFFECTIVE:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Claude недоступен: не задан claude_API_KEY",
+        )
+    if provider == "gpt" and not settings.OPENAI_API_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="GPT недоступен: не задан OPENAI_API_KEY",
+        )
+
+    credits_needed = required_credits(homework_data.tasks_count, provider)
 
     # Lock user row and check AI credits to prevent race condition
     user_locked = db.query(User).filter(User.id == current_user.id).with_for_update().first()
@@ -71,7 +88,8 @@ def generate_homework_tasks(
             subject=homework_data.subject,
             topic=homework_data.topic,
             level=level_value,
-            tasks_count=homework_data.tasks_count
+            tasks_count=homework_data.tasks_count,
+            ai_provider=provider,
         )
 
         # Create homework record
@@ -117,15 +135,18 @@ def generate_homework_tasks(
 
 
 @router.get("/test")
-def test_ai_connection(current_user: User = Depends(get_current_user)):
-    """Test OpenAI connection"""
+def test_ai_connection(
+    provider: str = "gpt",
+    current_user: User = Depends(get_current_user),
+):
+    """Test AI connection"""
     if not settings.AI_ENABLED:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="AI генератор отключен. Укажите OPENAI_API_KEY в .env",
+            detail="AI генератор отключен. Укажите OPENAI_API_KEY или claude_API_KEY в .env",
         )
     try:
-        return test_connection()
+        return test_connection(provider)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

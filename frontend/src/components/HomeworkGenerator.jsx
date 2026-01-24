@@ -11,6 +11,7 @@ const HomeworkGenerator = ({ students }) => {
     topic: '',
     difficulty: 'oge',
     tasks_count: 5,
+    ai_provider: 'gpt',
     student_context: '',
     last_mistakes: '',
     teaching_goal: 'practice',
@@ -24,8 +25,8 @@ const HomeworkGenerator = ({ students }) => {
 
   const calculateCredits = (tasksCount) => {
     const count = Number(tasksCount) || 0;
-    if (count <= 5) return 1;
-    return Math.ceil(count / 5);
+    const base = count <= 5 ? 1 : Math.ceil(count / 5);
+    return formData.ai_provider === 'claude' ? base * 2 : base;
   };
 
   const buildTopicPrompt = () => {
@@ -105,7 +106,22 @@ const HomeworkGenerator = ({ students }) => {
           <div className="mt-1">1 задание (до 5 задач) = 1 AI кредит</div>
           <div>От 5 задач в задании = 2+ AI кредита</div>
           <div className="mt-2 text-xs text-blue-600">
-            Сейчас используется самая дешёвая модель. В будущем добавим выбор версии GPT.
+            Claude Haiku тратит больше кредитов, чем GPT.
+          </div>
+        </div>
+
+        <div>
+          <label className="label">AI модель</label>
+          <select
+            className="input"
+            value={formData.ai_provider}
+            onChange={(e) => setFormData({ ...formData, ai_provider: e.target.value })}
+          >
+            <option value="gpt">GPT (дешевле)</option>
+            <option value="claude">Claude Haiku (дороже)</option>
+          </select>
+          <div className="text-xs text-gray-600 dark:text-slate-400 mt-1">
+            Claude тоже ходит через прокси.
           </div>
         </div>
 
