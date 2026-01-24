@@ -37,3 +37,16 @@ class TaskItem(BaseModel):
     text: str
     solution: str
     answer: str
+
+
+class RejectedTask(BaseModel):
+    number: Optional[int]
+    errors: List[str]
+
+
+class ValidationMetadata(BaseModel):
+    total_generated: int
+    valid_count: int
+    invalid_count: int
+    quality_score: float
+    rejected_tasks: List[RejectedTask]
