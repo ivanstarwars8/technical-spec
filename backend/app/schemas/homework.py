@@ -11,7 +11,7 @@ class HomeworkGenerate(BaseModel):
     topic: str
     difficulty: DifficultyLevel
     tasks_count: int = 5
-    ai_provider: Literal["gpt", "claude"] = "gpt"
+    ai_provider: Literal["gpt_mini", "gpt_nano", "claude_sonnet"] = "gpt_mini"
 
     class Config:
         use_enum_values = True

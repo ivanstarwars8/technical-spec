@@ -20,10 +20,12 @@ class Settings(BaseSettings):
     OPENAI_PROXY: Optional[str] = None
 
     # Claude (Anthropic)
-    # поддерживаем оба варианта env-ключа: CLAUDE_API_KEY и claude_API_KEY
     CLAUDE_API_KEY: Optional[str] = None
     claude_API_KEY: Optional[str] = None
-    CLAUDE_MODEL: str = "claude-3-5-haiku-latest"
+    # Models
+    CLAUDE_SONNET_MODEL: str = "claude-sonnet-4-5-20250929"
+    GPT_NANO_MODEL: str = "gpt-5-nano"
+    GPT_MINI_MODEL: str = "gpt-5-mini"
 
     # YooKassa
     YUKASSA_SHOP_ID: Optional[str] = None

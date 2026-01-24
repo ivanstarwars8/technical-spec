@@ -10,8 +10,7 @@ from ..utils.homework_validator import validate_homework_tasks
 
 logger = logging.getLogger(__name__)
 
-OPENAI_MODEL = "gpt-4o-mini"
-CLAUDE_DEFAULT_MODEL = "claude-3-5-haiku-latest"
+OPENAI_DEFAULT_MODEL = settings.GPT_NANO_MODEL
 CLAUDE_API_URL = "https://api.anthropic.com/v1/messages"
 
 
@@ -57,7 +56,7 @@ def get_openai_client() -> OpenAI:
     if settings.OPENAI_PROXY:
         http_client = httpx.Client(
             proxies=settings.OPENAI_PROXY,
-            timeout=60.0,
+            timeout=300.0,
         )
         return OpenAI(api_key=settings.OPENAI_API_KEY, http_client=http_client)
 
@@ -65,8 +64,8 @@ def get_openai_client() -> OpenAI:
 
 def get_http_client() -> httpx.Client:
     if settings.OPENAI_PROXY:
-        return httpx.Client(proxies=settings.OPENAI_PROXY, timeout=60.0)
-    return httpx.Client(timeout=60.0)
+        return httpx.Client(proxies=settings.OPENAI_PROXY, timeout=300.0)
+    return httpx.Client(timeout=300.0)
 
 
 def _generate_homework_openai(
@@ -74,11 +73,12 @@ def _generate_homework_openai(
     topic: str,
     level: str,
     tasks_count: int,
+    model: str,
 ) -> Dict[str, Any]:
     client = get_openai_client()
 
     response = client.chat.completions.create(
-        model=OPENAI_MODEL,
+        model=model,
         messages=[
             {
                 "role": "system",
@@ -86,7 +86,7 @@ def _generate_homework_openai(
             },
             {"role": "user", "content": topic},
         ],
-        temperature=0.8,
+        temperature=1,
         response_format={"type": "json_object"},
     )
 
@@ -100,12 +100,13 @@ def _generate_homework_claude(
     topic: str,
     level: str,
     tasks_count: int,
+    model: str,
 ) -> Dict[str, Any]:
     api_key = settings.CLAUDE_API_KEY_EFFECTIVE
     if not api_key:
         raise ValueError("Claude API key is not configured")
 
-    model = settings.CLAUDE_MODEL or CLAUDE_DEFAULT_MODEL
+    # model passed as argument
     prompt = (
         "Ты опытный репетитор, который создаёт уникальные задачи для учеников.\n"
         "ВАЖНО: отвечай ТОЛЬКО валидным JSON без пояснений.\n\n"
@@ -133,7 +134,7 @@ def _generate_homework_claude(
             },
             json={
                 "model": model,
-                "max_tokens": 1800,
+                "max_tokens": 4096,
                 "temperature": 0.8,
                 "messages": [{"role": "user", "content": prompt}],
             },
@@ -204,10 +205,13 @@ def generate_homework(
 
     try:
         # Call selected provider
-        if ai_provider == "claude":
-            result = _generate_homework_claude(subject, prompt, level_text, tasks_count)
+        if ai_provider == "claude_sonnet":
+            result = _generate_homework_claude(subject, prompt, level_text, tasks_count, settings.CLAUDE_SONNET_MODEL)
+        elif ai_provider == "gpt_mini":
+            result = _generate_homework_openai(subject, prompt, level_text, tasks_count, settings.GPT_MINI_MODEL)
         else:
-            result = _generate_homework_openai(subject, prompt, level_text, tasks_count)
+            # gpt_nano (default fallback)
+            result = _generate_homework_openai(subject, prompt, level_text, tasks_count, settings.GPT_NANO_MODEL)
 
         # Validate structure
         if not validate_homework_structure(result, tasks_count):
@@ -263,10 +267,13 @@ def test_connection(ai_provider: str = "gpt") -> Dict[str, Any]:
     """
     start = time.time()
     try:
-        if ai_provider == "claude":
+        if ai_provider.startswith("claude"):
             api_key = settings.CLAUDE_API_KEY_EFFECTIVE
             if not api_key:
                 raise ValueError("Claude API key is not configured")
+            
+            model = settings.CLAUDE_SONNET_MODEL
+            
             http_client = get_http_client()
             try:
                 resp = http_client.post(
@@ -277,7 +284,7 @@ def test_connection(ai_provider: str = "gpt") -> Dict[str, Any]:
                         "content-type": "application/json",
                     },
                     json={
-                        "model": settings.CLAUDE_MODEL or CLAUDE_DEFAULT_MODEL,
+                        "model": model,
                         "max_tokens": 32,
                         "temperature": 0,
                         "messages": [{"role": "user", "content": "ping"}],
@@ -287,16 +294,17 @@ def test_connection(ai_provider: str = "gpt") -> Dict[str, Any]:
                 http_client.close()
             if resp.status_code >= 400:
                 raise ValueError("AI service connection failed")
-            model_name = (resp.json() or {}).get("model") or (settings.CLAUDE_MODEL or CLAUDE_DEFAULT_MODEL)
+            model_name = (resp.json() or {}).get("model") or model
         else:
+            model = settings.GPT_MINI_MODEL if ai_provider == "gpt_mini" else settings.GPT_NANO_MODEL
             client = get_openai_client()
             response = client.chat.completions.create(
-                model=OPENAI_MODEL,
+                model=model,
                 messages=[
                     {"role": "system", "content": "You are a ping test. Reply with OK."},
                     {"role": "user", "content": "ping"},
                 ],
-                temperature=0,
+                # temperature=0 removed for gpt-5-nano compatibility
             )
             model_name = response.model
 

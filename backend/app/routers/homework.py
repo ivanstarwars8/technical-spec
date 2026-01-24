@@ -32,18 +32,23 @@ def generate_homework_tasks(
             base = 1
         else:
             base = (tasks_count + 4) // 5
-        # Claude дороже по кредитам
-        if provider == "claude":
+        
+        # Credit multipliers
+        if provider == "claude_sonnet":
+            return base * 5
+        if provider == "gpt_mini":
             return base * 2
+        if provider == "gpt_nano":
+            return base * 1
         return base
 
-    provider = homework_data.ai_provider or "gpt"
-    if provider == "claude" and not settings.CLAUDE_API_KEY_EFFECTIVE:
+    provider = homework_data.ai_provider or "gpt_nano"
+    if provider.startswith("claude") and not settings.CLAUDE_API_KEY_EFFECTIVE:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Claude недоступен: не задан claude_API_KEY",
         )
-    if provider == "gpt" and not settings.OPENAI_API_KEY:
+    if provider.startswith("gpt") and not settings.OPENAI_API_KEY:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="GPT недоступен: не задан OPENAI_API_KEY",

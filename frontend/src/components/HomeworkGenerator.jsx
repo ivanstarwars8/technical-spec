@@ -11,7 +11,7 @@ const HomeworkGenerator = ({ students }) => {
     topic: '',
     difficulty: 'oge',
     tasks_count: 5,
-    ai_provider: 'gpt',
+    ai_provider: 'gpt_nano',
     student_context: '',
     last_mistakes: '',
     teaching_goal: 'practice',
@@ -26,7 +26,10 @@ const HomeworkGenerator = ({ students }) => {
   const calculateCredits = (tasksCount) => {
     const count = Number(tasksCount) || 0;
     const base = count <= 5 ? 1 : Math.ceil(count / 5);
-    return formData.ai_provider === 'claude' ? base * 2 : base;
+    
+    if (formData.ai_provider === 'claude_sonnet') return base * 5;
+    if (formData.ai_provider === 'gpt_mini') return base * 2;
+    return base; // gpt_nano = 1x
   };
 
   const buildTopicPrompt = () => {
@@ -103,11 +106,9 @@ const HomeworkGenerator = ({ students }) => {
 
         <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
           <div className="font-semibold">Расчёт AI кредитов</div>
-          <div className="mt-1">1 задание (до 5 задач) = 1 AI кредит</div>
-          <div>От 5 задач в задании = 2+ AI кредита</div>
-          <div className="mt-2 text-xs text-blue-600">
-            Claude Haiku тратит больше кредитов, чем GPT.
-          </div>
+          <div className="mt-1">GPT-5 Nano = 1 кредит (самый дешёвый)</div>
+          <div>GPT-5 Mini = 2 кредита</div>
+          <div>Claude Sonnet 4.5 = 5 кредитов (сложная подготовка)</div>
         </div>
 
         <div>
@@ -117,11 +118,12 @@ const HomeworkGenerator = ({ students }) => {
             value={formData.ai_provider}
             onChange={(e) => setFormData({ ...formData, ai_provider: e.target.value })}
           >
-            <option value="gpt">GPT (дешевле)</option>
-            <option value="claude">Claude Haiku (дороже)</option>
+            <option value="gpt_nano">GPT-5 Nano (дешевле)</option>
+            <option value="gpt_mini">GPT-5 Mini (средне)</option>
+            <option value="claude_sonnet">Claude Sonnet 4.5 (топ)</option>
           </select>
           <div className="text-xs text-gray-600 dark:text-slate-400 mt-1">
-            Claude тоже ходит через прокси.
+            Claude и GPT работают через прокси.
           </div>
         </div>
 
