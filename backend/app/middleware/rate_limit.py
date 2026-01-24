@@ -16,6 +16,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     - Auth endpoints: 5 requests per minute per IP
     - AI homework: 10 requests per minute per IP
 
+    Each endpoint type has independent rate limits.
+
     Note: For production with multiple workers, consider using Redis for shared state.
     """
 
@@ -33,46 +35,65 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             cutoff = datetime.now() - timedelta(minutes=5)
             for ip in list(self.request_history.keys()):
                 self.request_history[ip] = [
-                    (ts, endpoint) for ts, endpoint in self.request_history[ip]
+                    (ts, endpoint_type) for ts, endpoint_type in self.request_history[ip]
                     if ts > cutoff
                 ]
                 if not self.request_history[ip]:
                     del self.request_history[ip]
 
-    def _get_rate_limits(self, path: str) -> Tuple[int, int]:
+    def _get_endpoint_type(self, path: str) -> str:
         """
-        Get rate limit for specific endpoint.
+        Determine endpoint type for rate limiting categories.
 
-        Returns: (max_requests, window_seconds)
+        Returns: endpoint_type string
         """
         # Auth endpoints: stricter limits
         if "/api/auth/login" in path or "/api/auth/register" in path:
-            return (5, 60)  # 5 per minute
+            return "auth"
 
         # AI homework generation: moderate limits
         if "/api/homework/generate" in path:
-            return (10, 60)  # 10 per minute
+            return "ai_homework"
 
-        # Default: generous limits
-        return (100, 60)  # 100 per minute
+        # Default category
+        return "general"
+
+    def _get_rate_limits(self, endpoint_type: str) -> Tuple[int, int]:
+        """
+        Get rate limit for specific endpoint type.
+
+        Returns: (max_requests, window_seconds)
+        """
+        limits = {
+            "auth": (5, 60),       # 5 per minute
+            "ai_homework": (10, 60),  # 10 per minute
+            "general": (100, 60)   # 100 per minute
+        }
+        return limits.get(endpoint_type, (100, 60))
 
     async def dispatch(self, request: Request, call_next):
         # Get client IP
         client_ip = request.client.host if request.client else "unknown"
         path = request.url.path
 
-        # Get rate limits for this endpoint
-        max_requests, window_seconds = self._get_rate_limits(path)
+        # Determine endpoint type
+        endpoint_type = self._get_endpoint_type(path)
 
-        # Clean up old requests
+        # Get rate limits for this endpoint type
+        max_requests, window_seconds = self._get_rate_limits(endpoint_type)
+
+        # Clean up old requests (outside the time window)
         cutoff = datetime.now() - timedelta(seconds=window_seconds)
         self.request_history[client_ip] = [
-            (ts, endpoint) for ts, endpoint in self.request_history[client_ip]
+            (ts, ep_type) for ts, ep_type in self.request_history[client_ip]
             if ts > cutoff
         ]
 
-        # Count recent requests
-        recent_requests = len(self.request_history[client_ip])
+        # Count recent requests ONLY for this endpoint type
+        recent_requests = sum(
+            1 for ts, ep_type in self.request_history[client_ip]
+            if ep_type == endpoint_type
+        )
 
         # Check if rate limit exceeded
         if recent_requests >= max_requests:
@@ -89,8 +110,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 }
             )
 
-        # Record this request
-        self.request_history[client_ip].append((datetime.now(), path))
+        # Record this request with its endpoint type
+        self.request_history[client_ip].append((datetime.now(), endpoint_type))
 
         # Process request
         response = await call_next(request)
