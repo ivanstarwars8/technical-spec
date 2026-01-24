@@ -20,11 +20,11 @@ def generate_homework_tasks(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Generate homework tasks using AI"""
+    """Generate homework tasks using AI (GPT or Claude)"""
     if not settings.AI_ENABLED:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="AI генератор отключен. Укажите OPENAI_API_KEY в .env",
+            detail="AI генератор отключен. Укажите OPENAI_API_KEY или ANTHROPIC_API_KEY в .env",
         )
 
     def required_credits(tasks_count: int) -> int:
@@ -71,7 +71,9 @@ def generate_homework_tasks(
             subject=homework_data.subject,
             topic=homework_data.topic,
             level=level_value,
-            tasks_count=homework_data.tasks_count
+            tasks_count=homework_data.tasks_count,
+            model=homework_data.model,
+            validate_quality=homework_data.validate_quality
         )
 
         # Create homework record
@@ -118,11 +120,11 @@ def generate_homework_tasks(
 
 @router.get("/test")
 def test_ai_connection(current_user: User = Depends(get_current_user)):
-    """Test OpenAI connection"""
+    """Test AI connection (GPT or Claude)"""
     if not settings.AI_ENABLED:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="AI генератор отключен. Укажите OPENAI_API_KEY в .env",
+            detail="AI генератор отключен. Укажите OPENAI_API_KEY или ANTHROPIC_API_KEY в .env",
         )
     try:
         return test_connection()

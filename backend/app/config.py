@@ -15,9 +15,11 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
-    # OpenAI
+    # AI Models
     OPENAI_API_KEY: Optional[str] = None
     OPENAI_PROXY: Optional[str] = None
+    ANTHROPIC_API_KEY: Optional[str] = None
+    DEFAULT_AI_MODEL: str = "gpt-4o-mini"  # или "claude-3-5-sonnet-20241022"
 
     # YooKassa
     YUKASSA_SHOP_ID: Optional[str] = None
@@ -61,7 +63,7 @@ class Settings(BaseSettings):
 
     @property
     def AI_ENABLED(self) -> bool:
-        return bool(self.OPENAI_API_KEY)
+        return bool(self.OPENAI_API_KEY or self.ANTHROPIC_API_KEY)
 
     @property
     def BILLING_ENABLED(self) -> bool:

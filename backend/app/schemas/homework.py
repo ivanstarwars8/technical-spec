@@ -11,6 +11,8 @@ class HomeworkGenerate(BaseModel):
     topic: str
     difficulty: DifficultyLevel
     tasks_count: int = 5
+    model: Optional[str] = None  # "gpt-4o-mini", "claude-3-5-sonnet-20241022", or None for default
+    validate_quality: bool = True  # Enable quality validation by default
 
     class Config:
         use_enum_values = True
