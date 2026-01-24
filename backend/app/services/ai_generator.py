@@ -6,6 +6,7 @@ import httpx
 from openai import OpenAI, OpenAIError
 from ..config import settings
 from ..utils.prompts import HOMEWORK_PROMPT
+from ..utils.homework_validator import validate_homework_tasks
 
 logger = logging.getLogger(__name__)
 
@@ -212,6 +213,33 @@ def generate_homework(
         if not validate_homework_structure(result, tasks_count):
             logger.error(f"Invalid homework structure from AI({ai_provider}): {result}")
             raise ValueError("AI returned invalid homework structure")
+
+        # Validate quality of tasks
+        tasks = result.get("tasks", [])
+        valid_tasks, invalid_tasks = validate_homework_tasks(tasks, subject, level_text)
+
+        # Update result with only valid tasks
+        result["tasks"] = valid_tasks
+
+        # Add validation metadata
+        result["_validation"] = {
+            "total_generated": len(tasks),
+            "valid_count": len(valid_tasks),
+            "invalid_count": len(invalid_tasks),
+            "quality_score": round(len(valid_tasks) / len(tasks), 2) if tasks else 0,
+            "rejected_tasks": [
+                {
+                    "number": item["task"].get("number"),
+                    "errors": item["errors"]
+                }
+                for item in invalid_tasks
+            ]
+        }
+
+        logger.info(
+            f"Homework validation complete: {len(valid_tasks)}/{len(tasks)} tasks passed "
+            f"(quality score: {result['_validation']['quality_score']})"
+        )
 
         return result
 
