@@ -34,8 +34,9 @@ def generate_homework_tasks(
 
     credits_needed = required_credits(homework_data.tasks_count)
 
-    # Check AI credits
-    if current_user.ai_credits_left < credits_needed:
+    # Lock user row and check AI credits to prevent race condition
+    user_locked = db.query(User).filter(User.id == current_user.id).with_for_update().first()
+    if not user_locked or user_locked.ai_credits_left < credits_needed:
         raise HTTPException(
             status_code=status.HTTP_402_PAYMENT_REQUIRED,
             detail="Not enough AI credits. Please upgrade your subscription."
@@ -87,8 +88,8 @@ def generate_homework_tasks(
 
         db.add(new_homework)
 
-        # Deduct AI credits
-        current_user.ai_credits_left -= credits_needed
+        # Deduct AI credits from locked user
+        user_locked.ai_credits_left -= credits_needed
 
         db.commit()
         db.refresh(new_homework)

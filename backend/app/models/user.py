@@ -1,7 +1,7 @@
 from sqlalchemy import Column, String, Integer, Enum as SQLEnum, DateTime
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 import enum
 from ..database import Base
@@ -27,7 +27,7 @@ class User(Base):
         nullable=False
     )
     ai_credits_left = Column(Integer, default=10, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     last_login = Column(DateTime)
 
     # Relationships
