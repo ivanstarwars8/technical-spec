@@ -240,6 +240,8 @@ VITE_API_URL=http://localhost:8000
 cd backend
 alembic revision --autogenerate -m "описание изменений"
 alembic upgrade head
+
+перезапуск systemctl restart tutorai-crm-test-go-bull.service
 ```
 
 ## Деплой
