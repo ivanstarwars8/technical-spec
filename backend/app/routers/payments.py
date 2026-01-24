@@ -3,16 +3,37 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, func, extract
+from sqlalchemy import and_, func, extract, case
 from ..database import get_db
 from ..models.user import User
-from ..models.payment import Payment
+from ..models.payment import Payment, PaymentStatusEnum
 from ..models.student import Student
 from ..models.lesson import Lesson, PaymentStatus as LessonPaymentStatus
 from ..schemas.payment import PaymentCreate, PaymentResponse, PaymentStats
 from ..utils.security import get_current_user
 
 router = APIRouter(prefix="/api/payments", tags=["payments"])
+
+def _recalculate_lesson_payment_status(db: Session, lesson: Lesson) -> None:
+    """Persist recalculated lesson.payment_status based on completed payments."""
+    if lesson.amount is None:
+        lesson.payment_status = LessonPaymentStatus.UNPAID
+        return
+
+    paid = db.query(func.coalesce(func.sum(Payment.amount), 0)).filter(
+        Payment.lesson_id == lesson.id,
+        Payment.status == PaymentStatusEnum.COMPLETED,
+    ).scalar()
+    paid = Decimal(paid or 0)
+    amount = Decimal(lesson.amount)
+    remaining = amount - paid
+
+    if remaining <= 0:
+        lesson.payment_status = LessonPaymentStatus.PAID
+    elif paid <= 0:
+        lesson.payment_status = LessonPaymentStatus.UNPAID
+    else:
+        lesson.payment_status = LessonPaymentStatus.PARTIAL
 
 
 @router.get("/", response_model=List[PaymentResponse])
@@ -47,6 +68,7 @@ def create_payment(
             detail="Student not found"
         )
 
+    lesson = None
     # If lesson_id provided, verify it belongs to user
     if payment_data.lesson_id:
         lesson = db.query(Lesson).filter(
@@ -68,6 +90,11 @@ def create_payment(
     db.add(new_payment)
     db.commit()
     db.refresh(new_payment)
+
+    # If payment is tied to a lesson, update lesson payment status
+    if lesson is not None:
+        _recalculate_lesson_payment_status(db, lesson)
+        db.commit()
 
     return new_payment
 
@@ -105,32 +132,57 @@ def get_debtors(
     db: Session = Depends(get_db)
 ):
     """Get list of students with unpaid lessons"""
-    # Get all unpaid/partial lessons
-    unpaid_lessons = db.query(Lesson, Student).join(
-        Student, Lesson.student_id == Student.id
-    ).filter(
-        and_(
-            Lesson.user_id == current_user.id,
-            Lesson.payment_status.in_([
-                LessonPaymentStatus.UNPAID,
-                LessonPaymentStatus.PARTIAL
-            ])
+    # Compute remaining per lesson (amount - sum(completed payments)), ignore lessons without amount
+    paid_amount = func.coalesce(func.sum(Payment.amount), 0).label("paid_amount")
+    remaining = func.greatest((Lesson.amount - paid_amount), 0).label("remaining_amount")
+
+    per_lesson = (
+        db.query(
+            Lesson.student_id.label("student_id"),
+            remaining,
         )
-    ).all()
+        .outerjoin(
+            Payment,
+            and_(
+                Payment.lesson_id == Lesson.id,
+                Payment.status == PaymentStatusEnum.COMPLETED,
+            ),
+        )
+        .filter(
+            Lesson.user_id == current_user.id,
+            Lesson.amount.isnot(None),
+        )
+        .group_by(Lesson.id)
+        .subquery()
+    )
 
-    # Group by student
-    debtors_dict = {}
-    for lesson, student in unpaid_lessons:
-        student_id = str(student.id)
-        if student_id not in debtors_dict:
-            debtors_dict[student_id] = {
-                "student_id": student_id,
-                "student_name": student.name,
-                "total_debt": Decimal("0.00"),
-                "unpaid_lessons_count": 0
-            }
+    unpaid_count = func.sum(
+        case(
+            (per_lesson.c.remaining_amount > 0, 1),
+            else_=0,
+        )
+    ).label("unpaid_lessons_count")
 
-        debtors_dict[student_id]["total_debt"] += lesson.amount or Decimal("0.00")
-        debtors_dict[student_id]["unpaid_lessons_count"] += 1
+    rows = (
+        db.query(
+            Student.id.label("student_id"),
+            Student.name.label("student_name"),
+            func.coalesce(func.sum(per_lesson.c.remaining_amount), 0).label("total_debt"),
+            unpaid_count,
+        )
+        .join(per_lesson, per_lesson.c.student_id == Student.id)
+        .filter(Student.user_id == current_user.id)
+        .group_by(Student.id, Student.name)
+        .having(func.sum(per_lesson.c.remaining_amount) > 0)
+        .all()
+    )
 
-    return list(debtors_dict.values())
+    return [
+        {
+            "student_id": str(row.student_id),
+            "student_name": row.student_name,
+            "total_debt": row.total_debt,
+            "unpaid_lessons_count": int(row.unpaid_lessons_count or 0),
+        }
+        for row in rows
+    ]

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { lessonsAPI, studentsAPI, paymentsAPI } from '../services/api';
 import Calendar from '../components/Calendar';
 import { format, startOfWeek, endOfWeek, addMinutes } from 'date-fns';
@@ -8,6 +8,7 @@ import { X } from 'lucide-react';
 const CalendarPage = () => {
   const [lessons, setLessons] = useState([]);
   const [students, setStudents] = useState([]);
+  const [loadingCalendar, setLoadingCalendar] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedLesson, setSelectedLesson] = useState(null);
@@ -36,27 +37,53 @@ const CalendarPage = () => {
     payment_date: format(new Date(), 'yyyy-MM-dd'),
   });
 
+  const weekLessonsCache = useRef(new Map());
+
   useEffect(() => {
-    loadData(currentWeek);
+    loadStudents();
+  }, []);
+
+  useEffect(() => {
+    loadLessonsForWeek(currentWeek);
   }, [currentWeek]);
 
-  const loadData = async (weekDate = new Date()) => {
+  const getWeekKey = (weekDate) => {
+    const start = startOfWeek(weekDate, { locale: ru, weekStartsOn: 1 });
+    return format(start, 'yyyy-MM-dd');
+  };
+
+  const loadStudents = async () => {
+    try {
+      const studentsRes = await studentsAPI.getAll();
+      setStudents(studentsRes.data);
+    } catch (error) {
+      console.error('Error loading students:', error);
+    }
+  };
+
+  const loadLessonsForWeek = async (weekDate = new Date()) => {
+    const cacheKey = getWeekKey(weekDate);
+    const cached = weekLessonsCache.current.get(cacheKey);
+    if (cached) {
+      setLessons(cached);
+    }
+
+    setLoadingCalendar(true);
     try {
       const start = startOfWeek(weekDate, { locale: ru, weekStartsOn: 1 });
       const end = endOfWeek(weekDate, { locale: ru, weekStartsOn: 1 });
 
-      const [lessonsRes, studentsRes] = await Promise.all([
-        lessonsAPI.getCalendar({
-          start_date: format(start, 'yyyy-MM-dd'),
-          end_date: format(end, 'yyyy-MM-dd'),
-        }),
-        studentsAPI.getAll(),
-      ]);
+      const lessonsRes = await lessonsAPI.getCalendar({
+        start_date: format(start, 'yyyy-MM-dd'),
+        end_date: format(end, 'yyyy-MM-dd'),
+      });
 
+      weekLessonsCache.current.set(cacheKey, lessonsRes.data);
       setLessons(lessonsRes.data);
-      setStudents(studentsRes.data);
     } catch (error) {
       console.error('Error loading calendar:', error);
+    } finally {
+      setLoadingCalendar(false);
     }
   };
 
@@ -152,7 +179,7 @@ const CalendarPage = () => {
         await lessonsAPI.create(formData);
       }
       setShowModal(false);
-      loadData();
+      loadLessonsForWeek(currentWeek);
     } catch (error) {
       alert('Ошибка сохранения: ' + (error.response?.data?.detail || error.message));
     }
@@ -164,10 +191,40 @@ const CalendarPage = () => {
     try {
       await lessonsAPI.delete(selectedLesson.id);
       setShowModal(false);
-      loadData();
+      loadLessonsForWeek(currentWeek);
     } catch (error) {
       alert('Ошибка удаления: ' + error.message);
     }
+  };
+
+  const applyLocalLessonPayment = (lessonId, paidAmountValue) => {
+    const paid = Number(paidAmountValue || 0);
+    if (!Number.isFinite(paid) || paid <= 0) return;
+
+    const updateLesson = (lesson) => {
+      if (!lesson) return lesson;
+      const currentRemainingRaw = lesson.remaining_amount ?? lesson.amount ?? null;
+      const currentRemaining = currentRemainingRaw === null ? null : Number(currentRemainingRaw);
+      if (currentRemaining === null || !Number.isFinite(currentRemaining)) return lesson;
+
+      const nextRemaining = Math.max(currentRemaining - paid, 0);
+      const nextStatus =
+        nextRemaining <= 0 ? 'paid' : nextRemaining < Number(lesson.amount || nextRemaining) ? 'partial' : lesson.payment_status;
+
+      return {
+        ...lesson,
+        remaining_amount: nextRemaining,
+        payment_status: nextStatus,
+      };
+    };
+
+    setLessons((prev) => {
+      const next = prev.map((lesson) => (lesson.id === lessonId ? updateLesson(lesson) : lesson));
+      const cacheKey = getWeekKey(currentWeek);
+      weekLessonsCache.current.set(cacheKey, next);
+      return next;
+    });
+    setSelectedLesson((prev) => (prev && prev.id === lessonId ? updateLesson(prev) : prev));
   };
 
   const handleQuickPayment = async (e) => {
@@ -184,7 +241,8 @@ const CalendarPage = () => {
         payment_method: paymentForm.payment_method,
         payment_date: paymentForm.payment_date,
       });
-      await loadData();
+      applyLocalLessonPayment(selectedLesson.id, paymentForm.amount);
+      await loadLessonsForWeek(currentWeek);
       setShowModal(false);
     } catch (error) {
       setPaymentError(error.response?.data?.detail || error.message);
@@ -217,6 +275,11 @@ const CalendarPage = () => {
         currentWeek={currentWeek}
         onWeekChange={setCurrentWeek}
       />
+      {loadingCalendar && (
+        <div className="text-sm text-gray-500 dark:text-slate-500 -mt-2">
+          Обновление календаря...
+        </div>
+      )}
 
       {/* Lessons Table */}
       <div className="card">

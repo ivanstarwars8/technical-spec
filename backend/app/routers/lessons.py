@@ -1,16 +1,54 @@
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from datetime import datetime, date
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import and_
+from sqlalchemy import and_, func
+from decimal import Decimal
 from ..database import get_db
 from ..models.user import User
-from ..models.lesson import Lesson
+from ..models.lesson import Lesson, PaymentStatus as LessonPaymentStatus
 from ..models.student import Student
+from ..models.payment import Payment, PaymentStatusEnum as PaymentStatusEnum
 from ..schemas.lesson import LessonCreate, LessonUpdate, LessonResponse
 from ..utils.security import get_current_user
 
 router = APIRouter(prefix="/api/lessons", tags=["lessons"])
+
+def _compute_payment_fields(
+    lesson: Lesson,
+    paid_amount: Optional[Decimal],
+) -> Tuple[LessonPaymentStatus, Optional[Decimal]]:
+    """Compute payment_status and remaining_amount for a lesson."""
+    if lesson.amount is None:
+        return (lesson.payment_status, None)
+
+    amount = Decimal(lesson.amount)
+    paid = Decimal(paid_amount or 0)
+    remaining = amount - paid
+    if remaining <= 0:
+        return (LessonPaymentStatus.PAID, Decimal("0.00"))
+    if paid <= 0:
+        return (LessonPaymentStatus.UNPAID, remaining)
+    return (LessonPaymentStatus.PARTIAL, remaining)
+
+def _serialize_lesson(
+    lesson: Lesson,
+    *,
+    payment_status: LessonPaymentStatus,
+    remaining_amount: Optional[Decimal],
+) -> dict:
+    return {
+        "id": lesson.id,
+        "user_id": lesson.user_id,
+        "student_id": lesson.student_id,
+        "datetime_start": lesson.datetime_start,
+        "datetime_end": lesson.datetime_end,
+        "status": lesson.status,
+        "payment_status": payment_status,
+        "amount": lesson.amount,
+        "remaining_amount": remaining_amount,
+        "notes": lesson.notes,
+    }
 
 
 @router.get("/", response_model=List[LessonResponse])
@@ -22,19 +60,45 @@ def get_lessons(
     db: Session = Depends(get_db)
 ):
     """Get lessons with optional filters"""
-    query = db.query(Lesson).filter(Lesson.user_id == current_user.id)
+    paid_amount = func.coalesce(func.sum(Payment.amount), 0).label("paid_amount")
+    query = (
+        db.query(Lesson, paid_amount)
+        .outerjoin(
+            Payment,
+            and_(
+                Payment.lesson_id == Lesson.id,
+                Payment.status == PaymentStatusEnum.COMPLETED,
+            ),
+        )
+        .filter(Lesson.user_id == current_user.id)
+        .group_by(Lesson.id)
+    )
 
     if student_id:
         query = query.filter(Lesson.student_id == student_id)
 
     if start_date:
-        query = query.filter(Lesson.datetime_start >= datetime.combine(start_date, datetime.min.time()))
+        query = query.filter(
+            Lesson.datetime_start >= datetime.combine(start_date, datetime.min.time())
+        )
 
     if end_date:
-        query = query.filter(Lesson.datetime_start <= datetime.combine(end_date, datetime.max.time()))
+        query = query.filter(
+            Lesson.datetime_start <= datetime.combine(end_date, datetime.max.time())
+        )
 
-    lessons = query.order_by(Lesson.datetime_start.desc()).all()
-    return lessons
+    rows = query.order_by(Lesson.datetime_start.desc()).all()
+    result: list[dict] = []
+    for lesson, paid in rows:
+        status_value, remaining = _compute_payment_fields(lesson, paid)
+        result.append(
+            _serialize_lesson(
+                lesson,
+                payment_status=status_value,
+                remaining_amount=remaining,
+            )
+        )
+    return result
 
 
 @router.get("/calendar", response_model=List[LessonResponse])
@@ -45,15 +109,39 @@ def get_calendar_lessons(
     db: Session = Depends(get_db)
 ):
     """Get lessons for calendar view"""
-    lessons = db.query(Lesson).filter(
-        and_(
-            Lesson.user_id == current_user.id,
-            Lesson.datetime_start >= datetime.combine(start_date, datetime.min.time()),
-            Lesson.datetime_start <= datetime.combine(end_date, datetime.max.time())
+    paid_amount = func.coalesce(func.sum(Payment.amount), 0).label("paid_amount")
+    rows = (
+        db.query(Lesson, paid_amount)
+        .outerjoin(
+            Payment,
+            and_(
+                Payment.lesson_id == Lesson.id,
+                Payment.status == PaymentStatusEnum.COMPLETED,
+            ),
         )
-    ).order_by(Lesson.datetime_start).all()
+        .filter(
+            and_(
+                Lesson.user_id == current_user.id,
+                Lesson.datetime_start >= datetime.combine(start_date, datetime.min.time()),
+                Lesson.datetime_start <= datetime.combine(end_date, datetime.max.time()),
+            )
+        )
+        .group_by(Lesson.id)
+        .order_by(Lesson.datetime_start)
+        .all()
+    )
 
-    return lessons
+    result: list[dict] = []
+    for lesson, paid in rows:
+        status_value, remaining = _compute_payment_fields(lesson, paid)
+        result.append(
+            _serialize_lesson(
+                lesson,
+                payment_status=status_value,
+                remaining_amount=remaining,
+            )
+        )
+    return result
 
 
 @router.post("/", response_model=LessonResponse, status_code=status.HTTP_201_CREATED)

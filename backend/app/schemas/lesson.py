@@ -49,6 +49,7 @@ class LessonResponse(BaseModel):
     status: LessonStatus
     payment_status: PaymentStatus
     amount: Optional[Decimal]
+    remaining_amount: Optional[Decimal] = None
     notes: Optional[str]
 
     class Config:
