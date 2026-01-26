@@ -117,7 +117,29 @@ def _generate_homework_openai(
     )
 
     content = response.choices[0].message.content
-    result = json.loads(content)
+    if not content:
+        logger.error("OpenAI returned empty content")
+        raise ValueError("AI returned empty response")
+    
+    # Validate and parse JSON with detailed error handling
+    try:
+        result = json.loads(content)
+    except json.JSONDecodeError as e:
+        logger.error(
+            f"Failed to parse OpenAI response as JSON. "
+            f"Error at line {e.lineno}, column {e.colno}: {e.msg}. "
+            f"Position: {e.pos}. Content preview: {content[:500]}"
+        )
+        raise ValueError(
+            f"AI returned invalid JSON format. "
+            f"Parse error: {e.msg} at position {e.pos}. "
+            "Please try again or contact support."
+        )
+    
+    if not isinstance(result, dict):
+        logger.error(f"OpenAI returned non-dict JSON: {type(result).__name__}")
+        raise ValueError("AI returned invalid response format: expected JSON object")
+    
     return result
 
 
@@ -188,7 +210,26 @@ def _generate_homework_claude(
         if text.lower().startswith("json"):
             text = text[4:].strip()
 
-    return json.loads(text)
+    # Validate and parse JSON with detailed error handling
+    try:
+        parsed_json = json.loads(text)
+    except json.JSONDecodeError as e:
+        logger.error(
+            f"Failed to parse Claude response as JSON. "
+            f"Error at line {e.lineno}, column {e.colno}: {e.msg}. "
+            f"Response preview: {text[:500]}"
+        )
+        raise ValueError(
+            f"AI returned invalid JSON format. "
+            f"Parse error at position {e.pos}: {e.msg}. "
+            "Please try again or contact support."
+        )
+    
+    if not isinstance(parsed_json, dict):
+        logger.error(f"Claude returned non-dict JSON: {type(parsed_json).__name__}")
+        raise ValueError("AI returned invalid response format: expected JSON object")
+    
+    return parsed_json
 
 
 def generate_homework(
@@ -287,13 +328,25 @@ def generate_homework(
         logger.error(f"OpenAI API error: {type(e).__name__}: {str(e)}")
         raise ValueError("AI service temporarily unavailable. Please try again later.")
     except json.JSONDecodeError as e:
-        logger.error(f"Failed to parse AI({ai_provider}) response as JSON: {str(e)}")
-        raise ValueError("AI returned invalid response format")
+        logger.error(
+            f"Failed to parse AI({ai_provider}) response as JSON. "
+            f"Error at line {e.lineno}, column {e.colno}: {e.msg}. "
+            f"Position: {e.pos}"
+        )
+        raise ValueError(
+            f"AI returned invalid JSON format. "
+            f"Parse error: {e.msg} at position {e.pos}. "
+            "Please try again or contact support."
+        )
     except ValueError:
         # Re-raise our own ValueError messages
         raise
     except Exception as e:
-        logger.error(f"Unexpected error in generate_homework({ai_provider}): {type(e).__name__}: {str(e)}")
+        logger.error(
+            f"Unexpected error in generate_homework({ai_provider}): "
+            f"{type(e).__name__}: {str(e)}",
+            exc_info=True
+        )
         raise ValueError("Failed to generate homework. Please try again.")
 
 

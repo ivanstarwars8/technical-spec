@@ -221,7 +221,11 @@ def update_lesson(
         setattr(lesson, field, value)
 
     # Validate datetime range after update
-    if lesson.datetime_start >= lesson.datetime_end:
+    # Check both if both are set, or if one is updated check against existing value
+    datetime_start = lesson.datetime_start
+    datetime_end = lesson.datetime_end
+    
+    if datetime_start >= datetime_end:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="datetime_start must be before datetime_end"

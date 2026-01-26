@@ -152,11 +152,20 @@ def generate_telegram_link_code(
         existing = db.query(Student).filter(Student.telegram_link_code == code).first()
         if not existing:
             break
-
-    if code is None or existing:
+    
+    # If we exhausted all attempts and still have a duplicate, raise error
+    if code is None:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to generate unique code. Please try again."
+            detail="Failed to generate code. Please try again."
+        )
+    
+    # Double-check uniqueness before saving
+    existing_check = db.query(Student).filter(Student.telegram_link_code == code).first()
+    if existing_check:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate unique code after {max_attempts} attempts. Please try again."
         )
 
     student.telegram_link_code = code

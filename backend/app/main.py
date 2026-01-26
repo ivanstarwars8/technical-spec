@@ -1,8 +1,19 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from sqlalchemy.exc import SQLAlchemyError
+from fastapi.exceptions import RequestValidationError
+
 from .config import settings
 from .database import engine, Base
 from .middleware import SecurityHeadersMiddleware, RateLimitMiddleware
+from .middleware.error_handler import (
+    http_exception_handler,
+    validation_exception_handler,
+    sqlalchemy_exception_handler,
+    general_exception_handler
+)
+from .utils.logging_config import setup_logging
 from .routers import (
     auth_router,
     students_router,
@@ -12,12 +23,24 @@ from .routers import (
     subscription_router
 )
 
+# Setup centralized logging
+setup_logging(
+    log_level="INFO",
+    log_file=None  # Set to a path like "/var/log/tutorai-crm/app.log" for file logging
+)
+
 # Create FastAPI app
 app = FastAPI(
     title="TutorAI CRM API",
     description="API for TutorAI CRM - AI-powered homework generator for tutors",
     version="1.0.0"
 )
+
+# Register global exception handlers
+app.add_exception_handler(StarletteHTTPException, http_exception_handler)
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(SQLAlchemyError, sqlalchemy_exception_handler)
+app.add_exception_handler(Exception, general_exception_handler)
 
 # Configure CORS
 _cors_origins = list(settings.CORS_ORIGINS)
