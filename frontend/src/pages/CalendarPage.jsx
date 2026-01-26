@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { lessonsAPI, studentsAPI, paymentsAPI } from '../services/api';
 import Calendar from '../components/Calendar';
-import { format, startOfWeek, endOfWeek, addMinutes } from 'date-fns';
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addMinutes } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { X } from 'lucide-react';
 
@@ -14,7 +14,7 @@ const CalendarPage = () => {
   const [selectedLesson, setSelectedLesson] = useState(null);
   const [savingPayment, setSavingPayment] = useState(false);
   const [paymentError, setPaymentError] = useState('');
-  const [currentWeek, setCurrentWeek] = useState(new Date());
+  const [currentMonth, setCurrentMonth] = useState(new Date());
   const [durationPreset, setDurationPreset] = useState('1');
   const [customDuration, setCustomDuration] = useState('1');
 
@@ -37,19 +37,19 @@ const CalendarPage = () => {
     payment_date: format(new Date(), 'yyyy-MM-dd'),
   });
 
-  const weekLessonsCache = useRef(new Map());
+  const monthLessonsCache = useRef(new Map());
 
   useEffect(() => {
     loadStudents();
   }, []);
 
   useEffect(() => {
-    loadLessonsForWeek(currentWeek);
-  }, [currentWeek]);
+    loadLessonsForMonth(currentMonth);
+  }, [currentMonth]);
 
-  const getWeekKey = (weekDate) => {
-    const start = startOfWeek(weekDate, { locale: ru, weekStartsOn: 1 });
-    return format(start, 'yyyy-MM-dd');
+  const getMonthKey = (monthDate) => {
+    const start = startOfMonth(monthDate);
+    return format(start, 'yyyy-MM');
   };
 
   const loadStudents = async () => {
@@ -61,24 +61,26 @@ const CalendarPage = () => {
     }
   };
 
-  const loadLessonsForWeek = async (weekDate = new Date()) => {
-    const cacheKey = getWeekKey(weekDate);
-    const cached = weekLessonsCache.current.get(cacheKey);
+  const loadLessonsForMonth = async (monthDate = new Date()) => {
+    const cacheKey = getMonthKey(monthDate);
+    const cached = monthLessonsCache.current.get(cacheKey);
     if (cached) {
       setLessons(cached);
     }
 
     setLoadingCalendar(true);
     try {
-      const start = startOfWeek(weekDate, { locale: ru, weekStartsOn: 1 });
-      const end = endOfWeek(weekDate, { locale: ru, weekStartsOn: 1 });
+      const monthStart = startOfMonth(monthDate);
+      const monthEnd = endOfMonth(monthDate);
+      const calendarStart = startOfWeek(monthStart, { locale: ru, weekStartsOn: 1 });
+      const calendarEnd = endOfWeek(monthEnd, { locale: ru, weekStartsOn: 1 });
 
       const lessonsRes = await lessonsAPI.getCalendar({
-        start_date: format(start, 'yyyy-MM-dd'),
-        end_date: format(end, 'yyyy-MM-dd'),
+        start_date: format(calendarStart, 'yyyy-MM-dd'),
+        end_date: format(calendarEnd, 'yyyy-MM-dd'),
       });
 
-      weekLessonsCache.current.set(cacheKey, lessonsRes.data);
+      monthLessonsCache.current.set(cacheKey, lessonsRes.data);
       setLessons(lessonsRes.data);
     } catch (error) {
       console.error('Error loading calendar:', error);
@@ -126,7 +128,6 @@ const CalendarPage = () => {
     setSelectedDate(date);
     setSelectedLesson(null);
     setPaymentError('');
-    setCurrentWeek(date);
     setDurationPreset('1');
     setCustomDuration('1');
     setFormData({
@@ -142,7 +143,6 @@ const CalendarPage = () => {
   const handleLessonClick = (lesson) => {
     setSelectedLesson(lesson);
     setPaymentError('');
-    setCurrentWeek(new Date(lesson.datetime_start));
     const startDate = new Date(lesson.datetime_start);
     const endDate = new Date(lesson.datetime_end);
     const diffMinutes = Math.max(0, Math.round((endDate - startDate) / 60000));
@@ -179,7 +179,7 @@ const CalendarPage = () => {
         await lessonsAPI.create(formData);
       }
       setShowModal(false);
-      loadLessonsForWeek(currentWeek);
+      loadLessonsForMonth(currentMonth);
     } catch (error) {
       alert('Ошибка сохранения: ' + (error.response?.data?.detail || error.message));
     }
@@ -191,7 +191,7 @@ const CalendarPage = () => {
     try {
       await lessonsAPI.delete(selectedLesson.id);
       setShowModal(false);
-      loadLessonsForWeek(currentWeek);
+      loadLessonsForMonth(currentMonth);
     } catch (error) {
       alert('Ошибка удаления: ' + error.message);
     }
@@ -220,8 +220,8 @@ const CalendarPage = () => {
 
     setLessons((prev) => {
       const next = prev.map((lesson) => (lesson.id === lessonId ? updateLesson(lesson) : lesson));
-      const cacheKey = getWeekKey(currentWeek);
-      weekLessonsCache.current.set(cacheKey, next);
+      const cacheKey = getMonthKey(currentMonth);
+      monthLessonsCache.current.set(cacheKey, next);
       return next;
     });
     setSelectedLesson((prev) => (prev && prev.id === lessonId ? updateLesson(prev) : prev));
@@ -242,7 +242,7 @@ const CalendarPage = () => {
         payment_date: paymentForm.payment_date,
       });
       applyLocalLessonPayment(selectedLesson.id, paymentForm.amount);
-      await loadLessonsForWeek(currentWeek);
+      await loadLessonsForMonth(currentMonth);
       setShowModal(false);
     } catch (error) {
       setPaymentError(error.response?.data?.detail || error.message);
@@ -272,8 +272,8 @@ const CalendarPage = () => {
         lessons={lessons}
         onDayClick={handleDayClick}
         onLessonClick={handleLessonClick}
-        currentWeek={currentWeek}
-        onWeekChange={setCurrentWeek}
+        currentMonth={currentMonth}
+        onMonthChange={setCurrentMonth}
       />
       {loadingCalendar && (
         <div className="text-sm text-gray-500 dark:text-slate-500 -mt-2">
@@ -348,7 +348,7 @@ const CalendarPage = () => {
                       <td className="py-2 text-gray-900 dark:text-slate-100">{student?.name || '—'}</td>
                       <td className="py-2">
                         <span className={`px-2 py-1 rounded-full text-xs ${
-                          lesson.payment_status === 'paid' 
+                          lesson.payment_status === 'paid'
                             ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                             : lesson.payment_status === 'partial'
                             ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'

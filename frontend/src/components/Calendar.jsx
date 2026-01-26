@@ -1,16 +1,31 @@
 import { useState } from 'react';
-import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, addWeeks, subWeeks } from 'date-fns';
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  startOfWeek,
+  endOfWeek,
+  eachDayOfInterval,
+  isSameDay,
+  isSameMonth,
+  addMonths,
+  subMonths
+} from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-const Calendar = ({ lessons, onDayClick, onLessonClick, currentWeek, onWeekChange }) => {
-  const [internalWeek, setInternalWeek] = useState(new Date());
-  const activeWeek = currentWeek ?? internalWeek;
-  const setWeek = onWeekChange ?? setInternalWeek;
+const Calendar = ({ lessons, onDayClick, onLessonClick, currentMonth, onMonthChange }) => {
+  const [internalMonth, setInternalMonth] = useState(new Date());
+  const activeMonth = currentMonth ?? internalMonth;
+  const setMonth = onMonthChange ?? setInternalMonth;
 
-  const weekStart = startOfWeek(activeWeek, { locale: ru, weekStartsOn: 1 });
-  const weekEnd = endOfWeek(activeWeek, { locale: ru, weekStartsOn: 1 });
-  const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
+  const monthStart = startOfMonth(activeMonth);
+  const monthEnd = endOfMonth(activeMonth);
+  const calendarStart = startOfWeek(monthStart, { locale: ru, weekStartsOn: 1 });
+  const calendarEnd = endOfWeek(monthEnd, { locale: ru, weekStartsOn: 1 });
+  const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+
+  const weekDays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
   const getLessonsForDay = (day) => {
     return lessons.filter((lesson) =>
@@ -31,157 +46,171 @@ const Calendar = ({ lessons, onDayClick, onLessonClick, currentWeek, onWeekChang
     }
   };
 
+  const weeks = [];
+  for (let i = 0; i < days.length; i += 7) {
+    weeks.push(days.slice(i, i + 7));
+  }
+
   return (
     <div className="card">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6">
-        <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-slate-100">
-          {format(weekStart, 'd MMMM', { locale: ru })} -{' '}
-          {format(weekEnd, 'd MMMM yyyy', { locale: ru })}
+        <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-slate-100 capitalize">
+          {format(activeMonth, 'LLLL yyyy', { locale: ru })}
         </h2>
         <div className="flex gap-1 sm:gap-2">
           <button
-            onClick={() => setWeek(subWeeks(activeWeek, 1))}
+            onClick={() => setMonth(subMonths(activeMonth, 1))}
             className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg text-gray-600 dark:text-slate-400 transition-colors"
-            aria-label="Предыдущая неделя"
+            aria-label="Предыдущий месяц"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
           <button
-            onClick={() => setWeek(new Date())}
+            onClick={() => setMonth(new Date())}
             className="px-3 sm:px-4 py-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg font-medium text-sm text-gray-700 dark:text-slate-300 transition-colors"
           >
             Сегодня
           </button>
           <button
-            onClick={() => setWeek(addWeeks(activeWeek, 1))}
+            onClick={() => setMonth(addMonths(activeMonth, 1))}
             className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg text-gray-600 dark:text-slate-400 transition-colors"
-            aria-label="Следующая неделя"
+            aria-label="Следующий месяц"
           >
             <ChevronRight className="w-5 h-5" />
           </button>
         </div>
       </div>
 
-      {/* Desktop Calendar - 7 columns */}
-      <div className="hidden md:grid grid-cols-7 gap-2 lg:gap-4">
-        {days.map((day) => {
-          const dayLessons = getLessonsForDay(day);
-          const isToday = isSameDay(day, new Date());
-
-          return (
+      {/* Desktop Calendar - Month Grid */}
+      <div className="hidden md:block">
+        <div className="grid grid-cols-7 gap-1 mb-1">
+          {weekDays.map((day) => (
             <div
-              key={day.toISOString()}
-              className={`border rounded-lg p-2 lg:p-3 min-h-[100px] lg:min-h-[120px] cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors ${
-                isToday 
-                  ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 dark:border-primary-600' 
-                  : 'border-gray-200 dark:border-slate-700'
-              }`}
-              onClick={() => onDayClick(day)}
+              key={day}
+              className="text-center text-xs font-medium text-gray-500 dark:text-slate-500 py-2"
             >
-              <div className="font-semibold mb-2">
-                <div className="text-xs text-gray-500 dark:text-slate-500 uppercase">
-                  {format(day, 'EEEEEE', { locale: ru })}
-                </div>
-                <div className={`text-sm lg:text-base ${isToday ? 'text-primary-600 dark:text-primary-400' : 'text-gray-900 dark:text-slate-100'}`}>
+              {day}
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7 gap-1">
+          {days.map((day) => {
+            const dayLessons = getLessonsForDay(day);
+            const isToday = isSameDay(day, new Date());
+            const isCurrentMonth = isSameMonth(day, activeMonth);
+
+            return (
+              <div
+                key={day.toISOString()}
+                className={`border rounded-lg p-1.5 lg:p-2 min-h-[80px] lg:min-h-[100px] cursor-pointer transition-colors ${
+                  isToday
+                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 dark:border-primary-600'
+                    : isCurrentMonth
+                    ? 'border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700/50'
+                    : 'border-gray-100 dark:border-slate-800 bg-gray-50 dark:bg-slate-800/50'
+                }`}
+                onClick={() => onDayClick(day)}
+              >
+                <div className={`text-sm font-medium mb-1 ${
+                  isToday
+                    ? 'text-primary-600 dark:text-primary-400'
+                    : isCurrentMonth
+                    ? 'text-gray-900 dark:text-slate-100'
+                    : 'text-gray-400 dark:text-slate-600'
+                }`}>
                   {format(day, 'd')}
                 </div>
-              </div>
-              <div className="space-y-1">
-                {dayLessons.map((lesson) => {
-                  const remaining = lesson.remaining_amount ?? lesson.amount;
-                  const remainingText = remaining !== null && remaining !== undefined
-                    ? `${parseFloat(remaining).toFixed(0)} ₽`
-                    : null;
-                  return (
+                <div className="space-y-0.5">
+                  {dayLessons.slice(0, 3).map((lesson) => (
                     <div
                       key={lesson.id}
                       onClick={(e) => {
                         e.stopPropagation();
                         onLessonClick(lesson);
                       }}
-                      className={`text-xs p-1.5 lg:p-2 rounded border ${getPaymentStatusColor(
+                      className={`text-xs p-1 rounded border truncate ${getPaymentStatusColor(
                         lesson.payment_status
                       )} transition-colors hover:opacity-80`}
                     >
-                      <div className="font-medium truncate">
-                        {format(new Date(lesson.datetime_start), 'HH:mm')}
-                      </div>
-                      {remainingText && (
-                        <div className="truncate">{remainingText}</div>
-                      )}
+                      {format(new Date(lesson.datetime_start), 'HH:mm')}
                     </div>
-                  );
-                })}
+                  ))}
+                  {dayLessons.length > 3 && (
+                    <div className="text-xs text-gray-500 dark:text-slate-500 pl-1">
+                      +{dayLessons.length - 3}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
 
-      {/* Mobile Calendar - List view */}
-      <div className="md:hidden space-y-2">
-        {days.map((day) => {
-          const dayLessons = getLessonsForDay(day);
-          const isToday = isSameDay(day, new Date());
-
-          return (
+      {/* Mobile Calendar - Compact Month View */}
+      <div className="md:hidden">
+        <div className="grid grid-cols-7 gap-0.5 mb-1">
+          {weekDays.map((day) => (
             <div
-              key={day.toISOString()}
-              className={`border rounded-lg p-3 cursor-pointer ${
-                isToday 
-                  ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 dark:border-primary-600' 
-                  : 'border-gray-200 dark:border-slate-700'
-              }`}
-              onClick={() => onDayClick(day)}
+              key={day}
+              className="text-center text-xs font-medium text-gray-500 dark:text-slate-500 py-1"
             >
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <div className={`font-bold ${isToday ? 'text-primary-600 dark:text-primary-400' : 'text-gray-900 dark:text-slate-100'}`}>
+              {day}
+            </div>
+          ))}
+        </div>
+        {weeks.map((week, weekIndex) => (
+          <div key={weekIndex} className="grid grid-cols-7 gap-0.5 mb-0.5">
+            {week.map((day) => {
+              const dayLessons = getLessonsForDay(day);
+              const isToday = isSameDay(day, new Date());
+              const isCurrentMonth = isSameMonth(day, activeMonth);
+
+              return (
+                <div
+                  key={day.toISOString()}
+                  className={`relative p-1 min-h-[44px] rounded cursor-pointer transition-colors ${
+                    isToday
+                      ? 'bg-primary-100 dark:bg-primary-900/30'
+                      : isCurrentMonth
+                      ? 'bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700'
+                      : 'bg-gray-50 dark:bg-slate-900'
+                  }`}
+                  onClick={() => onDayClick(day)}
+                >
+                  <div className={`text-xs text-center font-medium ${
+                    isToday
+                      ? 'text-primary-600 dark:text-primary-400'
+                      : isCurrentMonth
+                      ? 'text-gray-900 dark:text-slate-100'
+                      : 'text-gray-400 dark:text-slate-600'
+                  }`}>
                     {format(day, 'd')}
                   </div>
-                  <div className="text-sm text-gray-600 dark:text-slate-400">
-                    {format(day, 'EEEE', { locale: ru })}
-                  </div>
+                  {dayLessons.length > 0 && (
+                    <div className="flex justify-center gap-0.5 mt-0.5 flex-wrap">
+                      {dayLessons.slice(0, 3).map((lesson) => (
+                        <div
+                          key={lesson.id}
+                          className={`w-1.5 h-1.5 rounded-full ${
+                            lesson.payment_status === 'paid'
+                              ? 'bg-green-500'
+                              : lesson.payment_status === 'partial'
+                              ? 'bg-yellow-500'
+                              : 'bg-red-500'
+                          }`}
+                        />
+                      ))}
+                      {dayLessons.length > 3 && (
+                        <div className="w-1.5 h-1.5 rounded-full bg-gray-400" />
+                      )}
+                    </div>
+                  )}
                 </div>
-                {dayLessons.length > 0 && (
-                  <span className="text-xs bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 px-2 py-1 rounded-full">
-                    {dayLessons.length} занятий
-                  </span>
-                )}
-              </div>
-              
-              {dayLessons.length > 0 && (
-                <div className="space-y-1.5 mt-2">
-                  {dayLessons.map((lesson) => {
-                    const remaining = lesson.remaining_amount ?? lesson.amount;
-                    const remainingText = remaining !== null && remaining !== undefined
-                      ? `${parseFloat(remaining).toFixed(0)} ₽`
-                      : null;
-                    return (
-                      <div
-                        key={lesson.id}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onLessonClick(lesson);
-                        }}
-                        className={`flex items-center justify-between text-sm p-2 rounded border ${getPaymentStatusColor(
-                          lesson.payment_status
-                        )}`}
-                      >
-                        <span className="font-medium">
-                          {format(new Date(lesson.datetime_start), 'HH:mm')} - {format(new Date(lesson.datetime_end), 'HH:mm')}
-                        </span>
-                        {remainingText && (
-                          <span className="font-medium">{remainingText}</span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })}
+              );
+            })}
+          </div>
+        ))}
       </div>
     </div>
   );
