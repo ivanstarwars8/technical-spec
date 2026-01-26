@@ -9,6 +9,7 @@ const HomeworkGenerator = ({ students }) => {
     student_id: '',
     subject: '',
     topic: '',
+    student_problem: '',
     difficulty: 'oge',
     tasks_count: 5,
     ai_provider: 'gpt_nano',
@@ -18,6 +19,8 @@ const HomeworkGenerator = ({ students }) => {
     extra_instructions: '',
     difficulty_mix: 'balanced',
     show_solutions: true,
+    textbook_mode: 'none',
+    textbook_name: '',
   });
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
@@ -34,6 +37,23 @@ const HomeworkGenerator = ({ students }) => {
 
   const buildTopicPrompt = () => {
     const parts = [formData.topic.trim()];
+
+    // Проблема ученика (ключевое поле!)
+    if (formData.student_problem.trim()) {
+      parts.push(`\nПРОБЛЕМА УЧЕНИКА: ${formData.student_problem.trim()}`);
+    }
+
+    // Учебник
+    if (formData.textbook_mode !== 'none' && formData.textbook_name.trim()) {
+      if (formData.textbook_mode === 'from_textbook') {
+        parts.push(`УЧЕБНИК: ${formData.textbook_name.trim()}`);
+        parts.push('ВАЖНО: Составь задания СТРОГО из этого учебника. Используй номера заданий, формулировки и примеры из учебника. Задачи должны быть узнаваемы учеником как задания из его учебника.');
+      } else if (formData.textbook_mode === 'textbook_inspired') {
+        parts.push(`УЧЕБНИК-ОРИЕНТИР: ${formData.textbook_name.trim()}`);
+        parts.push('Генерируй новые задания, но в стиле и формате этого учебника. Используй похожую терминологию, типы задач и уровень сложности как в указанном учебнике.');
+      }
+    }
+
     if (formData.student_context.trim()) {
       parts.push(`Контекст ученика: ${formData.student_context.trim()}`);
     }
@@ -90,13 +110,103 @@ const HomeworkGenerator = ({ students }) => {
   };
 
   const copyToClipboard = () => {
-    const text = result.generated_tasks.tasks
-      .map((task) => `${task.number}. ${task.text}\n\nРешение: ${task.solution}\n\nОтвет: ${task.answer}\n`)
-      .join('\n---\n\n');
+    const data = result.generated_tasks;
+    let text = '';
+
+    // Поддержка нового формата с блоками
+    if (data.blocks && Array.isArray(data.blocks)) {
+      text = data.worksheet_title ? `# ${data.worksheet_title}\n\n` : '';
+      data.blocks.forEach((block) => {
+        text += `## ${block.block_name}\n`;
+        if (block.block_description) text += `${block.block_description}\n`;
+        text += '\n';
+        block.tasks.forEach((task) => {
+          text += `${task.number}. ${task.text}\n`;
+          if (task.solution) text += `Решение: ${task.solution}\n`;
+          text += `Ответ: ${task.answer}\n\n`;
+        });
+        text += '---\n\n';
+      });
+    } else {
+      // Старый формат
+      text = data.tasks
+        .map((task) => `${task.number}. ${task.text}\n\nРешение: ${task.solution}\n\nОтвет: ${task.answer}\n`)
+        .join('\n---\n\n');
+    }
 
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const renderTasks = () => {
+    const data = result.generated_tasks;
+
+    // Новый формат с блоками
+    if (data.blocks && Array.isArray(data.blocks)) {
+      return (
+        <div className="space-y-6">
+          {data.worksheet_title && (
+            <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100">{data.worksheet_title}</h3>
+          )}
+          {data.blocks.map((block, blockIndex) => (
+            <div key={blockIndex} className="space-y-3">
+              <div className="border-b border-gray-200 dark:border-slate-700 pb-2">
+                <h4 className="font-bold text-gray-800 dark:text-slate-200">{block.block_name}</h4>
+                {block.block_description && (
+                  <p className="text-sm text-gray-600 dark:text-slate-400">{block.block_description}</p>
+                )}
+              </div>
+              {block.tasks.map((task) => (
+                <div key={task.number} className="border-l-4 border-primary-500 dark:border-primary-400 pl-3 sm:pl-4 py-2">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="font-semibold text-gray-900 dark:text-slate-100">№{task.number}</span>
+                    {task.type && (
+                      <span className="text-xs px-2 py-0.5 bg-gray-100 dark:bg-slate-700 rounded text-gray-600 dark:text-slate-400">
+                        {task.type}
+                      </span>
+                    )}
+                  </div>
+                  <div className="mb-2 text-gray-800 dark:text-slate-200 whitespace-pre-wrap">{task.text}</div>
+                  {task.solution && (
+                    <details className="text-sm text-gray-600 dark:text-slate-400">
+                      <summary className="cursor-pointer font-medium hover:text-gray-900 dark:hover:text-slate-200 transition-colors">
+                        Решение
+                      </summary>
+                      <div className="mt-2 whitespace-pre-wrap">{task.solution}</div>
+                    </details>
+                  )}
+                  <div className="text-sm font-medium mt-2">
+                    <span className="text-gray-600 dark:text-slate-400">Ответ:</span>{' '}
+                    <span className="text-gray-900 dark:text-slate-100">{task.answer}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    // Старый формат
+    return (
+      <div className="space-y-4">
+        {data.tasks.map((task) => (
+          <div key={task.number} className="border-l-4 border-primary-500 dark:border-primary-400 pl-3 sm:pl-4 py-2">
+            <div className="font-semibold mb-2 text-gray-900 dark:text-slate-100">Задача {task.number}</div>
+            <div className="mb-2 text-gray-800 dark:text-slate-200">{task.text}</div>
+            <details className="text-sm text-gray-600 dark:text-slate-400">
+              <summary className="cursor-pointer font-medium hover:text-gray-900 dark:hover:text-slate-200 transition-colors">Решение</summary>
+              <div className="mt-2">{task.solution}</div>
+            </details>
+            <div className="text-sm font-medium mt-2">
+              <span className="text-gray-600 dark:text-slate-400">Ответ:</span>{' '}
+              <span className="text-gray-900 dark:text-slate-100">{task.answer}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
   };
 
   return (
@@ -166,6 +276,109 @@ const HomeworkGenerator = ({ students }) => {
             placeholder="Квадратные уравнения"
             required
           />
+        </div>
+
+        {/* Проблема ученика - ключевое поле */}
+        <div className="rounded-lg border-2 border-amber-300 dark:border-amber-600 bg-amber-50 dark:bg-amber-900/20 p-4">
+          <label className="label text-amber-800 dark:text-amber-300">
+            🎯 Проблема ученика (что именно не получается?)
+          </label>
+          <textarea
+            className="input bg-white dark:bg-slate-800"
+            rows="2"
+            value={formData.student_problem}
+            onChange={(e) => setFormData({ ...formData, student_problem: e.target.value })}
+            placeholder="Напр.: постоянно забывает окончание -s, путает когда применять теорему Виета, не понимает разницу между Present Simple и Continuous"
+          />
+          <div className="text-xs text-amber-700 dark:text-amber-400 mt-2">
+            Опиши конкретную проблему — AI создаст задания с ловушками на эту ошибку и упражнения для её устранения
+          </div>
+        </div>
+
+        {/* Блок учебника */}
+        <div className="rounded-lg border border-gray-200 dark:border-slate-700 p-4 space-y-3">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-sm font-medium text-gray-700 dark:text-slate-300">📚 Использование учебника</span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <label className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${
+              formData.textbook_mode === 'none'
+                ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 dark:border-primary-600'
+                : 'border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700/50'
+            }`}>
+              <input
+                type="radio"
+                name="textbook_mode"
+                value="none"
+                checked={formData.textbook_mode === 'none'}
+                onChange={(e) => setFormData({ ...formData, textbook_mode: e.target.value })}
+                className="sr-only"
+              />
+              <div>
+                <div className="text-sm font-medium text-gray-900 dark:text-slate-100">Без учебника</div>
+                <div className="text-xs text-gray-500 dark:text-slate-500">Свободная генерация</div>
+              </div>
+            </label>
+
+            <label className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${
+              formData.textbook_mode === 'from_textbook'
+                ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 dark:border-primary-600'
+                : 'border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700/50'
+            }`}>
+              <input
+                type="radio"
+                name="textbook_mode"
+                value="from_textbook"
+                checked={formData.textbook_mode === 'from_textbook'}
+                onChange={(e) => setFormData({ ...formData, textbook_mode: e.target.value })}
+                className="sr-only"
+              />
+              <div>
+                <div className="text-sm font-medium text-gray-900 dark:text-slate-100">Из учебника</div>
+                <div className="text-xs text-gray-500 dark:text-slate-500">Задания из книги</div>
+              </div>
+            </label>
+
+            <label className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${
+              formData.textbook_mode === 'textbook_inspired'
+                ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 dark:border-primary-600'
+                : 'border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700/50'
+            }`}>
+              <input
+                type="radio"
+                name="textbook_mode"
+                value="textbook_inspired"
+                checked={formData.textbook_mode === 'textbook_inspired'}
+                onChange={(e) => setFormData({ ...formData, textbook_mode: e.target.value })}
+                className="sr-only"
+              />
+              <div>
+                <div className="text-sm font-medium text-gray-900 dark:text-slate-100">По стилю</div>
+                <div className="text-xs text-gray-500 dark:text-slate-500">Новые в стиле учебника</div>
+              </div>
+            </label>
+          </div>
+
+          {formData.textbook_mode !== 'none' && (
+            <div>
+              <label className="label">Название учебника</label>
+              <input
+                type="text"
+                className="input"
+                value={formData.textbook_name}
+                onChange={(e) => setFormData({ ...formData, textbook_name: e.target.value })}
+                placeholder="Напр.: Мордкович 10 класс, Атанасян Геометрия 7-9"
+                required={formData.textbook_mode !== 'none'}
+              />
+              <div className="text-xs text-gray-500 dark:text-slate-500 mt-1">
+                {formData.textbook_mode === 'from_textbook'
+                  ? 'AI составит задания, максимально похожие на задачи из этого учебника'
+                  : 'AI сгенерирует новые задания в стиле и формате указанного учебника'
+                }
+              </div>
+            </div>
+          )}
         </div>
 
         <div>
@@ -287,7 +500,14 @@ const HomeworkGenerator = ({ students }) => {
       {result && (
         <div className="card">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100">Результат</h3>
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100">Рабочий лист</h3>
+              {result.generated_tasks.total_tasks && (
+                <p className="text-sm text-gray-600 dark:text-slate-400">
+                  {result.generated_tasks.total_tasks} заданий
+                </p>
+              )}
+            </div>
             <button onClick={copyToClipboard} className="btn btn-secondary flex items-center justify-center gap-2 w-full sm:w-auto">
               {copied ? (
                 <>
@@ -297,28 +517,13 @@ const HomeworkGenerator = ({ students }) => {
               ) : (
                 <>
                   <Copy className="w-4 h-4" />
-                  Копировать
+                  Копировать всё
                 </>
               )}
             </button>
           </div>
 
-          <div className="space-y-4">
-            {result.generated_tasks.tasks.map((task) => (
-              <div key={task.number} className="border-l-4 border-primary-500 dark:border-primary-400 pl-3 sm:pl-4 py-2">
-                <div className="font-semibold mb-2 text-gray-900 dark:text-slate-100">Задача {task.number}</div>
-                <div className="mb-2 text-gray-800 dark:text-slate-200">{task.text}</div>
-                <details className="text-sm text-gray-600 dark:text-slate-400">
-                  <summary className="cursor-pointer font-medium hover:text-gray-900 dark:hover:text-slate-200 transition-colors">Решение</summary>
-                  <div className="mt-2">{task.solution}</div>
-                </details>
-                <div className="text-sm font-medium mt-2">
-                  <span className="text-gray-600 dark:text-slate-400">Ответ:</span>{' '}
-                  <span className="text-gray-900 dark:text-slate-100">{task.answer}</span>
-                </div>
-              </div>
-            ))}
-          </div>
+          {renderTasks()}
         </div>
       )}
     </div>

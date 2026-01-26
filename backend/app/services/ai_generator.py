@@ -5,7 +5,7 @@ from typing import Dict, Any, List, Optional
 import httpx
 from openai import OpenAI, OpenAIError
 from ..config import settings
-from ..utils.prompts import HOMEWORK_PROMPT
+from ..utils.prompts import HOMEWORK_PROMPT, PROBLEM_SECTION_TEMPLATE
 from ..utils.homework_validator import validate_homework_tasks
 
 logger = logging.getLogger(__name__)
@@ -18,17 +18,43 @@ def validate_homework_structure(data: Dict[str, Any], expected_tasks: int) -> bo
     """
     Validate that the homework JSON has the expected structure.
 
-    Expected structure:
-    {
-        "tasks": [
-            {"number": 1, "text": "...", "solution": "...", "answer": "..."},
-            ...
-        ]
-    }
+    Supports both old format (tasks array) and new worksheet format (blocks array).
     """
     if not isinstance(data, dict):
         return False
 
+    # New worksheet format with blocks
+    if "blocks" in data:
+        blocks = data["blocks"]
+        if not isinstance(blocks, list) or len(blocks) == 0:
+            return False
+
+        total_tasks = 0
+        for block in blocks:
+            if not isinstance(block, dict):
+                return False
+            if "tasks" not in block or not isinstance(block["tasks"], list):
+                return False
+            for task in block["tasks"]:
+                if not isinstance(task, dict):
+                    return False
+                required_fields = ["number", "text", "answer"]
+                if not all(field in task for field in required_fields):
+                    return False
+                total_tasks += 1
+
+        if total_tasks < 10:
+            logger.warning(f"Expected at least 15 tasks in worksheet, got {total_tasks}")
+
+        # Flatten tasks for compatibility with validation
+        all_tasks = []
+        for block in blocks:
+            all_tasks.extend(block["tasks"])
+        data["tasks"] = all_tasks
+
+        return True
+
+    # Old format with tasks array
     if "tasks" not in data:
         return False
 
@@ -134,7 +160,7 @@ def _generate_homework_claude(
             },
             json={
                 "model": model,
-                "max_tokens": 4096,
+                "max_tokens": 8192,
                 "temperature": 0.8,
                 "messages": [{"role": "user", "content": prompt}],
             },
@@ -196,11 +222,21 @@ def generate_homework(
     }
     level_text = level_translations.get(level, level)
 
+    # Extract problem from topic if present (marked with "Проблема:" or similar)
+    problem_section = ""
+    problem_markers = ["проблема ученика:", "проблема:", "ошибки:", "слабое место:"]
+    topic_lower = topic.lower()
+    for marker in problem_markers:
+        if marker in topic_lower:
+            problem_section = PROBLEM_SECTION_TEMPLATE.format(problem=topic)
+            break
+
     prompt = HOMEWORK_PROMPT.format(
         subject=subject,
         topic=topic,
         level=level_text,
-        tasks_count=tasks_count
+        tasks_count=tasks_count,
+        problem_section=problem_section
     )
 
     try:
