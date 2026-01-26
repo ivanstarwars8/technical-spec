@@ -132,8 +132,11 @@ function AppRoutes() {
 }
 
 function App() {
+  // Vite BASE_URL учитывает `base` из vite.config.js (например "/crm/").
+  const basename = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
+
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={basename}>
       <ThemeProvider>
         <AuthProvider>
           <AppRoutes />

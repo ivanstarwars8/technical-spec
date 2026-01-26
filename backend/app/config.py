@@ -36,6 +36,7 @@ class Settings(BaseSettings):
 
     # CORS
     CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:3000"]
+    CORS_ORIGINS_EXTRA: Optional[str] = None  # "https://dosh-lo.ru,https://www.dosh-lo.ru"
 
     model_config = SettingsConfigDict(
         env_file=".env",
