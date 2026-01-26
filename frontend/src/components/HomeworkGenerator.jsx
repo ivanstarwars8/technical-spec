@@ -18,6 +18,8 @@ const HomeworkGenerator = ({ students }) => {
     extra_instructions: '',
     difficulty_mix: 'balanced',
     show_solutions: true,
+    textbook_mode: 'none',
+    textbook_name: '',
   });
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
@@ -34,6 +36,18 @@ const HomeworkGenerator = ({ students }) => {
 
   const buildTopicPrompt = () => {
     const parts = [formData.topic.trim()];
+
+    // Учебник
+    if (formData.textbook_mode !== 'none' && formData.textbook_name.trim()) {
+      if (formData.textbook_mode === 'from_textbook') {
+        parts.push(`УЧЕБНИК: ${formData.textbook_name.trim()}`);
+        parts.push('ВАЖНО: Составь задания СТРОГО из этого учебника. Используй номера заданий, формулировки и примеры из учебника. Задачи должны быть узнаваемы учеником как задания из его учебника.');
+      } else if (formData.textbook_mode === 'textbook_inspired') {
+        parts.push(`УЧЕБНИК-ОРИЕНТИР: ${formData.textbook_name.trim()}`);
+        parts.push('Генерируй новые задания, но в стиле и формате этого учебника. Используй похожую терминологию, типы задач и уровень сложности как в указанном учебнике.');
+      }
+    }
+
     if (formData.student_context.trim()) {
       parts.push(`Контекст ученика: ${formData.student_context.trim()}`);
     }
@@ -166,6 +180,92 @@ const HomeworkGenerator = ({ students }) => {
             placeholder="Квадратные уравнения"
             required
           />
+        </div>
+
+        {/* Блок учебника */}
+        <div className="rounded-lg border border-gray-200 dark:border-slate-700 p-4 space-y-3">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-sm font-medium text-gray-700 dark:text-slate-300">📚 Использование учебника</span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <label className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${
+              formData.textbook_mode === 'none'
+                ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 dark:border-primary-600'
+                : 'border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700/50'
+            }`}>
+              <input
+                type="radio"
+                name="textbook_mode"
+                value="none"
+                checked={formData.textbook_mode === 'none'}
+                onChange={(e) => setFormData({ ...formData, textbook_mode: e.target.value })}
+                className="sr-only"
+              />
+              <div>
+                <div className="text-sm font-medium text-gray-900 dark:text-slate-100">Без учебника</div>
+                <div className="text-xs text-gray-500 dark:text-slate-500">Свободная генерация</div>
+              </div>
+            </label>
+
+            <label className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${
+              formData.textbook_mode === 'from_textbook'
+                ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 dark:border-primary-600'
+                : 'border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700/50'
+            }`}>
+              <input
+                type="radio"
+                name="textbook_mode"
+                value="from_textbook"
+                checked={formData.textbook_mode === 'from_textbook'}
+                onChange={(e) => setFormData({ ...formData, textbook_mode: e.target.value })}
+                className="sr-only"
+              />
+              <div>
+                <div className="text-sm font-medium text-gray-900 dark:text-slate-100">Из учебника</div>
+                <div className="text-xs text-gray-500 dark:text-slate-500">Задания из книги</div>
+              </div>
+            </label>
+
+            <label className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${
+              formData.textbook_mode === 'textbook_inspired'
+                ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 dark:border-primary-600'
+                : 'border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700/50'
+            }`}>
+              <input
+                type="radio"
+                name="textbook_mode"
+                value="textbook_inspired"
+                checked={formData.textbook_mode === 'textbook_inspired'}
+                onChange={(e) => setFormData({ ...formData, textbook_mode: e.target.value })}
+                className="sr-only"
+              />
+              <div>
+                <div className="text-sm font-medium text-gray-900 dark:text-slate-100">По стилю</div>
+                <div className="text-xs text-gray-500 dark:text-slate-500">Новые в стиле учебника</div>
+              </div>
+            </label>
+          </div>
+
+          {formData.textbook_mode !== 'none' && (
+            <div>
+              <label className="label">Название учебника</label>
+              <input
+                type="text"
+                className="input"
+                value={formData.textbook_name}
+                onChange={(e) => setFormData({ ...formData, textbook_name: e.target.value })}
+                placeholder="Напр.: Мордкович 10 класс, Атанасян Геометрия 7-9"
+                required={formData.textbook_mode !== 'none'}
+              />
+              <div className="text-xs text-gray-500 dark:text-slate-500 mt-1">
+                {formData.textbook_mode === 'from_textbook'
+                  ? 'AI составит задания, максимально похожие на задачи из этого учебника'
+                  : 'AI сгенерирует новые задания в стиле и формате указанного учебника'
+                }
+              </div>
+            </div>
+          )}
         </div>
 
         <div>
